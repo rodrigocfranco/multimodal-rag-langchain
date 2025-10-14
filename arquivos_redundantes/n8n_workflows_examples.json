@@ -1,0 +1,118 @@
+{
+  "workflows": [
+    {
+      "name": "Chatbot RAG Simples",
+      "description": "Responde perguntas sobre PDFs via webhook",
+      "nodes": [
+        {
+          "type": "Webhook",
+          "name": "Receber Pergunta",
+          "config": {
+            "path": "rag-chat",
+            "method": "POST",
+            "responseMode": "responseNode"
+          }
+        },
+        {
+          "type": "HTTP Request",
+          "name": "Consultar RAG",
+          "config": {
+            "method": "POST",
+            "url": "http://localhost:5000/query-simple",
+            "sendBody": true,
+            "bodyParameters": {
+              "vectorstore": "{{$json.vectorstore}}",
+              "question": "{{$json.question}}"
+            },
+            "options": {
+              "timeout": 30000
+            }
+          }
+        },
+        {
+          "type": "Respond to Webhook",
+          "name": "Responder",
+          "config": {
+            "respondWith": "json",
+            "responseBody": "{{$json.answer}}"
+          }
+        }
+      ],
+      "exemplo_request": {
+        "method": "POST",
+        "url": "http://seu-n8n.com/webhook/rag-chat",
+        "body": {
+          "vectorstore": "attention",
+          "question": "What is the attention mechanism?"
+        }
+      }
+    },
+    {
+      "name": "WhatsApp RAG Bot",
+      "description": "Bot do WhatsApp que responde com base nos PDFs",
+      "nodes": [
+        {
+          "type": "WhatsApp Trigger",
+          "name": "Mensagem WhatsApp"
+        },
+        {
+          "type": "Function",
+          "name": "Preparar Query",
+          "code": "return [{\n  vectorstore: 'Manejo_da_terapia_antidiabética_no_DM2',\n  question: $input.item.json.message\n}];"
+        },
+        {
+          "type": "HTTP Request",
+          "name": "RAG API",
+          "config": {
+            "method": "POST",
+            "url": "http://localhost:5000/query-simple",
+            "body": "={{$json}}"
+          }
+        },
+        {
+          "type": "WhatsApp",
+          "name": "Enviar Resposta",
+          "config": {
+            "message": "{{$json.answer}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Processar Múltiplas Perguntas",
+      "description": "Faz várias perguntas e gera relatório",
+      "nodes": [
+        {
+          "type": "Schedule Trigger",
+          "name": "Diário 9h"
+        },
+        {
+          "type": "Code",
+          "name": "Lista de Perguntas",
+          "code": "const perguntas = [\n  'Resumo do documento',\n  'Principais recomendações',\n  'Contraindicações importantes'\n];\nreturn perguntas.map(q => ({question: q, vectorstore: 'attention'}));"
+        },
+        {
+          "type": "HTTP Request",
+          "name": "Consultar RAG",
+          "config": {
+            "method": "POST",
+            "url": "http://localhost:5000/query-simple"
+          }
+        },
+        {
+          "type": "Aggregate",
+          "name": "Consolidar Respostas"
+        },
+        {
+          "type": "Gmail",
+          "name": "Enviar Email",
+          "config": {
+            "subject": "Relatório Diário - RAG",
+            "message": "{{$json.all_answers}}"
+          }
+        }
+      ]
+    }
+  ]
+}
+

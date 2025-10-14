@@ -1,0 +1,28 @@
+# Unstructured - para extração de dados de PDFs
+unstructured[all-docs]
+pillow
+lxml
+
+# Vector store e embeddings
+chromadb
+langchain-chroma
+tiktoken
+
+# LangChain
+langchain
+langchain-community
+langchain-openai
+langchain-groq
+
+# Utilitários
+python-dotenv
+ipykernel
+jupyter
+
+# API REST (para integração n8n, Make, etc)
+flask
+flask-cors
+
+# Cohere (para reranking)
+langchain-cohere
+cohere

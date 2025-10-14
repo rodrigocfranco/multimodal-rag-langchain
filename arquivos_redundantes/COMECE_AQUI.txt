@@ -1,0 +1,67 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║                    🚀 COMECE AQUI - 3 COMANDOS                           ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+RECOMENDAÇÃO: Use o KNOWLEDGE BASE UNIFICADO ⭐
+(Busca em TODOS os PDFs automaticamente)
+
+═══════════════════════════════════════════════════════════════════════════
+    📝 COPIE E COLE NO TERMINAL
+═══════════════════════════════════════════════════════════════════════════
+
+cd /Users/rcfranco/multimodal-rag-langchain
+source venv/bin/activate
+
+# Adicionar primeiro PDF (5-10 min)
+python adicionar_pdf_ao_vectorstore.py "Manejo da terapia antidiabética no DM2.pdf"
+
+# Adicionar segundo PDF (5-10 min)
+python adicionar_pdf_ao_vectorstore.py "attention.pdf"
+
+# Consultar (5 segundos)
+python consultar_knowledge_base.py
+
+═══════════════════════════════════════════════════════════════════════════
+    💬 DEPOIS DE EXECUTAR
+═══════════════════════════════════════════════════════════════════════════
+
+Você verá:
+
+📚 KNOWLEDGE BASE UNIFICADO
+📄 Total de PDFs: 2
+✅ PRONTO! Você pode fazer perguntas sobre QUALQUER PDF!
+
+🤔 Sua pergunta: [digite aqui]
+
+O sistema vai:
+  1. Buscar em TODOS os PDFs
+  2. Encontrar a informação
+  3. Mostrar de qual PDF veio
+  4. Responder sua pergunta
+
+═══════════════════════════════════════════════════════════════════════════
+    ❓ PERGUNTAS QUE VOCÊ PODE FAZER
+═══════════════════════════════════════════════════════════════════════════
+
+• Quais são as classes de antidiabéticos?
+  → Busca no PDF de diabetes
+
+• What is the attention mechanism?
+  → Busca no PDF attention
+
+• Resuma todos os documentos disponíveis
+  → Busca em TODOS
+
+═══════════════════════════════════════════════════════════════════════════
+    📖 DOCUMENTAÇÃO
+═══════════════════════════════════════════════════════════════════════════
+
+Leia depois:
+  • RESUMO_3_SISTEMAS.txt      → Entender os 3 sistemas
+  • QUAL_SISTEMA_USAR.md        → Qual escolher
+  • KNOWLEDGE_BASE_UNIFICADO.md → Detalhes do sistema unificado
+
+═══════════════════════════════════════════════════════════════════════════
+

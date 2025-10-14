@@ -1,0 +1,180 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║              ✅ RESPOSTAS ÀS SUAS PERGUNTAS                              ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════
+    ❓ PERGUNTA 1: O retrieval traz imagens e tabelas?
+═══════════════════════════════════════════════════════════════════════════
+
+RESPOSTA: ✅ SIM! Traz TUDO (texto, tabelas E imagens)
+
+COMO FUNCIONA:
+
+1. VECTORSTORE armazena:
+   ├── Sumário do TEXTO    → Vetorizado
+   ├── Sumário da TABELA   → Vetorizado
+   └── Sumário da IMAGEM   → Vetorizado
+
+2. RETRIEVAL busca:
+   ├── Busca por similaridade nos sumários
+   ├── Retorna documentos ORIGINAIS correspondentes
+   └── Separa: textos/tabelas vs imagens
+
+3. PROMPT recebe:
+   ├── Contexto de TEXTO (inclui tabelas como texto/HTML)
+   └── IMAGENS em base64 (enviadas para GPT-4o-mini)
+
+4. GPT-4o-mini responde considerando:
+   ✅ Textos
+   ✅ Tabelas (no contexto textual)
+   ✅ Imagens (visão multi-modal)
+
+EVIDÊNCIA NO CÓDIGO (consultar_vectorstore.py):
+
+Linha 121-130: parse_docs() separa texto e imagens
+Linha 138-139: Adiciona TEXTO ao contexto
+Linha 149-154: Adiciona IMAGENS ao prompt
+Linha 164: GPT-4o-mini processa TUDO junto
+
+═══════════════════════════════════════════════════════════════════════════
+    ❓ PERGUNTA 2: Como integrar com n8n?
+═══════════════════════════════════════════════════════════════════════════
+
+RESPOSTA: ✅ API REST CRIADA! Pronta para n8n!
+
+ARQUIVOS CRIADOS:
+  • api_rest.py                   → API REST completa
+  • INTEGRACAO_N8N.md             → Guia completo
+  • n8n_workflows_examples.json   → Exemplos de workflows
+  • TESTAR_API.sh                 → Script de teste
+  • requirements_api.txt          → Dependências (flask)
+
+═══════════════════════════════════════════════════════════════════════════
+    🚀 COMO USAR COM N8N (3 Passos)
+═══════════════════════════════════════════════════════════════════════════
+
+PASSO 1: Instalar Flask
+────────────────────────
+cd /Users/rcfranco/multimodal-rag-langchain
+source venv/bin/activate
+pip install flask flask-cors
+
+
+PASSO 2: Iniciar API
+────────────────────────
+python api_rest.py
+
+# Servidor rodando em: http://localhost:5000
+
+
+PASSO 3: Usar no n8n
+────────────────────────
+No n8n, criar HTTP Request Node:
+
+Method: POST
+URL: http://localhost:5000/query-simple
+
+Body (JSON):
+{
+  "vectorstore": "attention",
+  "question": "What is the attention mechanism?"
+}
+
+Response: {{$json.answer}}
+
+═══════════════════════════════════════════════════════════════════════════
+    📡 ENDPOINTS DISPONÍVEIS
+═══════════════════════════════════════════════════════════════════════════
+
+1. GET  /health
+   → Health check da API
+
+2. GET  /vectorstores
+   → Lista todos os PDFs processados
+
+3. POST /query-simple  ⭐ USE ESTE PARA N8N
+   → Query simples, retorna só a resposta
+   
+   Body:
+   {
+     "vectorstore": "nome",
+     "question": "pergunta"
+   }
+   
+   Response:
+   {
+     "answer": "resposta aqui"
+   }
+
+4. POST /query
+   → Query completa com fontes e metadados
+
+5. GET  /info/<nome>
+   → Info de um vectorstore específico
+
+═══════════════════════════════════════════════════════════════════════════
+    🧪 TESTAR AGORA
+═══════════════════════════════════════════════════════════════════════════
+
+Terminal 1 (Iniciar API):
+────────────────────────
+cd /Users/rcfranco/multimodal-rag-langchain
+source venv/bin/activate
+python api_rest.py
+
+# Deixar rodando...
+
+
+Terminal 2 (Testar):
+────────────────────────
+# Opção 1: Script automático
+./TESTAR_API.sh
+
+# Opção 2: Teste manual com curl
+curl -X POST http://localhost:5000/query-simple \
+  -H "Content-Type: application/json" \
+  -d '{
+    "vectorstore": "attention",
+    "question": "What is the attention mechanism?"
+  }'
+
+═══════════════════════════════════════════════════════════════════════════
+    🌐 EXEMPLO DE WORKFLOW N8N
+═══════════════════════════════════════════════════════════════════════════
+
+Workflow: Chatbot RAG
+
+[Webhook] → [HTTP Request] → [Respond]
+              ↓
+         POST /query-simple
+         {
+           "vectorstore": "seu_pdf",
+           "question": "{{$json.question}}"
+         }
+
+Resultado: Bot que responde perguntas sobre PDFs!
+
+Ver mais exemplos em: n8n_workflows_examples.json
+
+═══════════════════════════════════════════════════════════════════════════
+    ✅ RESUMO DAS RESPOSTAS
+═══════════════════════════════════════════════════════════════════════════
+
+Pergunta 1: Retrieval traz imagens e tabelas?
+Resposta: ✅ SIM! Texto + Tabelas + Imagens (multi-modal completo)
+
+Pergunta 2: Como integrar com n8n?
+Resposta: ✅ API REST criada! Use endpoint /query-simple
+
+═══════════════════════════════════════════════════════════════════════════
+    📖 DOCUMENTAÇÃO COMPLETA
+═══════════════════════════════════════════════════════════════════════════
+
+INTEGRACAO_N8N.md → Guia completo de integração
+n8n_workflows_examples.json → Exemplos prontos
+api_rest.py → Código da API
+
+═══════════════════════════════════════════════════════════════════════════
+

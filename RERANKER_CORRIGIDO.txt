@@ -1,0 +1,52 @@
+✅ CORREÇÕES APLICADAS NO RERANKER
+
+═══════════════════════════════════════════════════════════════════════════
+
+1. SOBRE O RERANKER INICIALIZAR ANTES:
+   
+   ✅ ISSO ESTÁ CORRETO!
+   
+   O reranker DEVE ser inicializado uma vez no início, assim como:
+   • LLM é inicializado 1x
+   • Embeddings são inicializados 1x
+   • Reranker é inicializado 1x
+   
+   Depois, cada um é USADO em cada query.
+   
+   FLUXO CORRETO:
+   1. Inicializa reranker (1x no início)
+   2. Usuário faz pergunta
+   3. Sistema busca 10 resultados
+   4. Reranker reordena → top 5
+   5. GPT responde
+
+═══════════════════════════════════════════════════════════════════════════
+
+2. ERRO 'page_content' CORRIGIDO:
+   
+   ❌ Problema: CohereRerank retorna Document objects (com .page_content)
+   ✅ Solução: Ajustei parse_docs() para lidar com Documents do LangChain
+   
+   Agora:
+   • Detecta se é Document (.page_content)
+   • Extrai conteúdo corretamente
+   • Cria objeto compatível com .text
+   • Preserva metadata
+
+═══════════════════════════════════════════════════════════════════════════
+
+3. OTIMIZAÇÃO APLICADA:
+   
+   base_retriever.search_kwargs = {"k": 10}  # Busca 10
+   CohereRerank(top_n=5)                     # Retorna top 5
+   
+   Resultado: Melhor precisão!
+
+═══════════════════════════════════════════════════════════════════════════
+
+TESTE NOVAMENTE:
+
+python consultar_com_rerank.py
+
+Agora deve funcionar perfeitamente! 🔥
+

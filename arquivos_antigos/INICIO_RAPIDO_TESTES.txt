@@ -1,0 +1,153 @@
+═══════════════════════════════════════════════════════════════════════════
+    🧪 3 FERRAMENTAS PARA TESTAR SEU SISTEMA RAG
+═══════════════════════════════════════════════════════════════════════════
+
+Você tem um PDF: "Manejo da terapia antidiabética no DM2.pdf"
+Vamos testar se ele foi extraído corretamente!
+
+═══════════════════════════════════════════════════════════════════════════
+    1️⃣  INSPETOR DE PDF (Mais Rápido - 2-5 min)
+═══════════════════════════════════════════════════════════════════════════
+
+✅ O QUE FAZ: Mostra O QUE foi extraído do PDF (textos, tabelas, imagens)
+✅ QUANDO USAR: Primeira verificação rápida
+✅ TEMPO: 2-5 minutos
+
+💻 COMO EXECUTAR:
+cd /Users/rcfranco/multimodal-rag-langchain
+source venv/bin/activate
+python inspecionar_pdf.py "Manejo da terapia antidiabética no DM2.pdf"
+
+📊 O QUE VAI VER:
+- Número de textos, tabelas e imagens extraídos
+- Amostra dos primeiros 3 textos
+- Primeira tabela encontrada
+- Informações sobre imagens
+- Metadados disponíveis
+
+═══════════════════════════════════════════════════════════════════════════
+    2️⃣  CHAT NO TERMINAL (Interativo - 5-10 min setup)
+═══════════════════════════════════════════════════════════════════════════
+
+✅ O QUE FAZ: Chat interativo no terminal para fazer perguntas
+✅ QUANDO USAR: Testar perguntas e respostas rapidamente
+✅ TEMPO: 5-10 minutos (setup) + tempo ilimitado de chat
+
+💻 COMO EXECUTAR:
+cd /Users/rcfranco/multimodal-rag-langchain
+source venv/bin/activate
+python chat_terminal.py "Manejo da terapia antidiabética no DM2.pdf"
+
+💬 COMANDOS ESPECIAIS:
+- Digite sua pergunta normalmente
+- Digite "info" → Ver estatísticas do documento
+- Digite "exemplos" → Ver perguntas sugeridas
+- Digite "sair" → Encerrar chat
+
+📝 EXEMPLO DE PERGUNTAS:
+- Qual é o tema principal deste documento?
+- Quais são as classes de antidiabéticos mencionados?
+- Qual é a recomendação para metformina?
+- Resuma os pontos principais
+
+═══════════════════════════════════════════════════════════════════════════
+    3️⃣  INTERFACE WEB (Mais Bonita - 5-10 min setup)
+═══════════════════════════════════════════════════════════════════════════
+
+✅ O QUE FAZ: Interface gráfica profissional no navegador
+✅ QUANDO USAR: Apresentações, uso prolongado, interface mais amigável
+✅ TEMPO: 5-10 minutos (setup) + tempo ilimitado de chat
+
+💻 COMO EXECUTAR:
+
+# Primeira vez: Instalar Streamlit
+cd /Users/rcfranco/multimodal-rag-langchain
+source venv/bin/activate
+pip install streamlit
+
+# Executar sempre:
+streamlit run app_streamlit.py
+
+🌐 VAI ABRIR: http://localhost:8501 no navegador
+
+✨ FUNCIONALIDADES:
+- Seletor de PDFs (lista todos os PDFs em content/)
+- Botão para processar PDF
+- Chat com histórico de mensagens
+- Estatísticas do documento
+- Fontes consultadas expandíveis
+- Interface bonita e profissional
+
+═══════════════════════════════════════════════════════════════════════════
+    🎯 QUAL USAR PRIMEIRO?
+═══════════════════════════════════════════════════════════════════════════
+
+RECOMENDAÇÃO:
+
+1. PRIMEIRO → Inspetor PDF (2-5 min)
+   python inspecionar_pdf.py "Manejo da terapia antidiabética no DM2.pdf"
+   
+   Confirma que textos, tabelas e imagens foram extraídos
+
+2. SEGUNDO → Chat Terminal (5-10 min)
+   python chat_terminal.py "Manejo da terapia antidiabética no DM2.pdf"
+   
+   Testa algumas perguntas rapidamente
+
+3. TERCEIRO → Interface Web (opcional)
+   pip install streamlit
+   streamlit run app_streamlit.py
+   
+   Para uso contínuo e apresentações
+
+═══════════════════════════════════════════════════════════════════════════
+    📋 EXEMPLO COMPLETO DE TESTE
+═══════════════════════════════════════════════════════════════════════════
+
+# Passo 1: Ativar ambiente
+cd /Users/rcfranco/multimodal-rag-langchain
+source venv/bin/activate
+
+# Passo 2: Inspecionar (confirmar extração)
+python inspecionar_pdf.py "Manejo da terapia antidiabética no DM2.pdf"
+
+# Espere ver algo como:
+# ✅ 38 chunks de texto
+# ✅ 3 tabelas
+# ✅ 12 imagens
+
+# Passo 3: Chat no terminal
+python chat_terminal.py "Manejo da terapia antidiabética no DM2.pdf"
+
+# Aguarde o processamento (5-10 min)
+# Depois faça perguntas:
+
+🤔 Sua pergunta: Qual é o tema principal?
+🤔 Sua pergunta: Quais são os medicamentos mencionados?
+🤔 Sua pergunta: info
+🤔 Sua pergunta: sair
+
+# Passo 4 (opcional): Interface web
+pip install streamlit
+streamlit run app_streamlit.py
+
+═══════════════════════════════════════════════════════════════════════════
+    📚 DOCUMENTAÇÃO COMPLETA
+═══════════════════════════════════════════════════════════════════════════
+
+📖 GUIA_TESTES_INTERATIVOS.md   → Guia completo e detalhado
+📖 COMO_USAR_OUTROS_PDFS.md     → Como processar outros PDFs
+📖 README.md                     → Documentação geral do projeto
+
+═══════════════════════════════════════════════════════════════════════════
+    ✅ COMECE AGORA!
+═══════════════════════════════════════════════════════════════════════════
+
+Copie e cole no terminal:
+
+cd /Users/rcfranco/multimodal-rag-langchain
+source venv/bin/activate
+python inspecionar_pdf.py "Manejo da terapia antidiabética no DM2.pdf"
+
+═══════════════════════════════════════════════════════════════════════════
+

@@ -1,0 +1,4 @@
+# Dependências adicionais para API REST
+flask
+flask-cors
+
