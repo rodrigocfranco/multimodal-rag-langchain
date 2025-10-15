@@ -401,7 +401,11 @@ if modo_api:
 
     @app.route('/ui', methods=['GET'])
     def ui():
-        return render_template_string(UPLOAD_HTML)
+        try:
+            with open('ui_upload.html', 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            return render_template_string(UPLOAD_HTML)
 
     CHAT_HTML = """
     <!doctype html>
