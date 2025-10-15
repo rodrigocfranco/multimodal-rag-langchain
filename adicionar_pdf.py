@@ -43,17 +43,32 @@ persist_directory = "./knowledge_base"
 # ===========================================================================
 from unstructured.partition.pdf import partition_pdf
 
-chunks = partition_pdf(
-    filename=file_path,
-    infer_table_structure=True,
-    strategy="hi_res",
-    extract_image_block_types=["Image", "Table"],
-    extract_image_block_to_payload=True,
-    chunking_strategy="by_title",
-    max_characters=10000,
-    combine_text_under_n_chars=2000,
-    new_after_n_chars=6000,
-)
+# Permite alternar a estratégia via variável de ambiente e faz fallback automático
+strategy_env = os.getenv("UNSTRUCTURED_STRATEGY", "hi_res").strip().lower()
+
+def run_partition(strategy: str):
+    return partition_pdf(
+        filename=file_path,
+        infer_table_structure=True,
+        strategy=strategy,
+        extract_image_block_types=["Image", "Table"],
+        extract_image_block_to_payload=True,
+        chunking_strategy="by_title",
+        max_characters=10000,
+        combine_text_under_n_chars=2000,
+        new_after_n_chars=6000,
+    )
+
+try:
+    # Tenta com a estratégia definida (padrão hi_res)
+    chunks = run_partition(strategy_env)
+except Exception as e:
+    # Se falhar por falta de libGL/cv2, faz fallback para 'fast'
+    if "libGL.so.1" in str(e) or "cv2" in str(e) or "detectron2onnx" in str(e):
+        print("⚠️  Falha em hi_res (provável falta de libGL). Usando strategy='fast'.")
+        chunks = run_partition("fast")
+    else:
+        raise
 
 print(f"1️⃣  Extraído: {len(chunks)} chunks")
 
