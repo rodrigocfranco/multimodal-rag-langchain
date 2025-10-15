@@ -297,23 +297,33 @@ if modo_api:
         const out = document.getElementById('out');
         const uploadBtn = document.getElementById('uploadBtn');
         const streamBtn = document.getElementById('streamBtn');
-        
+        const fileInput = form.querySelector('input[type="file"]');
+
         // Upload normal
         uploadBtn.addEventListener('click', async (e)=>{
           e.preventDefault();
+          if (!fileInput.files || fileInput.files.length === 0) {
+            out.innerHTML = '<span class="err">❌ Por favor, selecione um arquivo PDF primeiro</span>';
+            return;
+          }
           await uploadPDF('/upload');
         });
-        
+
         // Upload com streaming
         streamBtn.addEventListener('click', async (e)=>{
           e.preventDefault();
+          if (!fileInput.files || fileInput.files.length === 0) {
+            out.innerHTML = '<span class="err">❌ Por favor, selecione um arquivo PDF primeiro</span>';
+            return;
+          }
           await uploadPDF('/upload-stream', true);
         });
-        
+
         async function uploadPDF(endpoint, isStreaming = false) {
           const data = new FormData(form);
           uploadBtn.disabled = true;
           streamBtn.disabled = true;
+          out.innerHTML = '';
           
           if (isStreaming) {
             streamBtn.textContent = '⏳ Processando...';
@@ -352,15 +362,21 @@ if modo_api:
               }
               
             } catch (err) {
-              out.innerHTML = '<span class="err">❌ ' + err.message + '</span>';
+              console.error('Erro no upload streaming:', err);
+              out.innerHTML = '<span class="err">❌ Erro: ' + err.message + '</span>';
             }
           } else {
             uploadBtn.textContent = '⏳ Enviando...';
-            out.textContent = 'Enviando...';
-            
+            out.innerHTML = '<p class="muted">⏳ Enviando arquivo... Isso pode levar alguns minutos.</p>';
+
             try {
+              console.log('Iniciando upload para:', endpoint);
               const res = await fetch(endpoint, { method:'POST', body:data });
+              console.log('Resposta recebida:', res.status);
+
               const j = await res.json();
+              console.log('JSON:', j);
+
               if (res.ok) {
                 out.innerHTML = '<span class="ok">✅ ' + (j.message || 'Processado com sucesso!') + '</span>';
                 form.reset();
@@ -368,7 +384,8 @@ if modo_api:
                 out.innerHTML = '<span class="err">❌ ' + (j.error || 'Falha') + '</span>';
               }
             } catch (err) {
-              out.innerHTML = '<span class="err">❌ ' + err.message + '</span>';
+              console.error('Erro no upload:', err);
+              out.innerHTML = '<span class="err">❌ Erro: ' + err.message + '</span>';
             }
           }
           
