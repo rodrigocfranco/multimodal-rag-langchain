@@ -29,3 +29,6 @@ cohere
 
 # openCV
 opencv-python-headless
+unstructured[all-docs]
+unstructured-inference
+pillow
