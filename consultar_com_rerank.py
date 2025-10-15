@@ -310,6 +310,73 @@ if modo_api:
     def ui():
         return render_template_string(UPLOAD_HTML)
 
+    CHAT_HTML = """
+    <!doctype html>
+    <html lang=pt-br>
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Chat – Knowledge Base</title>
+      <style>
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;max-width:800px;margin:40px auto;padding:0 16px;color:#222}
+        .card{border:1px solid #ddd;border-radius:10px;padding:16px}
+        .row{display:flex;gap:8px}
+        input,button{padding:10px;border-radius:8px;border:1px solid #ccc}
+        button{background:#1f6feb;color:#fff;border:none;cursor:pointer}
+        #log{margin-top:16px}
+        .msg-q{background:#f6f8fa;border-radius:8px;padding:10px;margin:8px 0}
+        .msg-a{background:#eef6ff;border-radius:8px;padding:10px;margin:8px 0}
+        .muted{color:#666;font-size:14px}
+      </style>
+    </head>
+    <body>
+      <h2>Chat com a Base de Conhecimento</h2>
+      <div class="card">
+        <div class="row">
+          <input id="q" type="text" placeholder="Digite sua pergunta..." style="flex:1" />
+          <button id="go">Enviar</button>
+        </div>
+        <div id="log"></div>
+        <div class="muted">As fontes são exibidas abaixo de cada resposta.</div>
+      </div>
+      <script>
+        const q = document.getElementById('q');
+        const go = document.getElementById('go');
+        const log = document.getElementById('log');
+        async function ask(){
+          const question = q.value.trim();
+          if(!question) return;
+          const qEl = document.createElement('div');
+          qEl.className='msg-q';
+          qEl.textContent = '🧑‍💻 ' + question;
+          log.appendChild(qEl);
+          q.value='';
+          const aEl = document.createElement('div');
+          aEl.className='msg-a';
+          aEl.textContent = '⏳ Buscando...';
+          log.appendChild(aEl);
+          try{
+            const res = await fetch('/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});
+            const j = await res.json();
+            if(res.ok){
+              aEl.innerHTML = '🤖 ' + (j.answer||'(sem resposta)') + (j.sources && j.sources.length ? '<div class="muted">📄 Fontes: ' + j.sources.join(', ') + '</div>' : '');
+            } else {
+              aEl.innerHTML = '❌ ' + (j.error||'Falha');
+            }
+          }catch(err){ aEl.textContent = '❌ ' + err.message; }
+          window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+        }
+        go.addEventListener('click', ask);
+        q.addEventListener('keydown', e=>{ if(e.key==='Enter') ask(); });
+      </script>
+    </body>
+    </html>
+    """
+
+    @app.route('/chat', methods=['GET'])
+    def chat():
+        return render_template_string(CHAT_HTML)
+
     @app.route('/upload', methods=['POST'])
     def upload():
         # API Key opcional
@@ -347,6 +414,7 @@ if modo_api:
     print("  GET  /        → Página inicial (documentação)")
     print("  GET  /health  → Health check")
     print("  GET  /ui      → Upload UI")
+    print("  GET  /chat    → Chat UI")
     print("  POST /upload  → Enviar PDF (multipart)")
     print("  POST /query   → Fazer pergunta (com rerank)")
     print("\n💡 Teste no navegador: http://localhost:5001/ui")
