@@ -4,7 +4,7 @@ ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# BUILD_MARKER v4 - Streaming UI
+# BUILD_MARKER v5 - Force deploy to correct project
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
