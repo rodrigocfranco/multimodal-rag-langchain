@@ -26,3 +26,6 @@ flask-cors
 # Cohere (para reranking)
 langchain-cohere
 cohere
+
+# openCV
+opencv-python-headless
