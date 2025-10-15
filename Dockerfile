@@ -4,7 +4,8 @@ FROM python:3.11-slim-bookworm
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8080
+    PORT=8080 \
+    FORCE_REBUILD=v2
 
 # Instalar dependências do sistema necessárias para Unstructured + OpenCV + Tesseract + Poppler
 RUN apt-get update && apt-get install -y --no-install-recommends \

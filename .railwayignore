@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+arquivos_antigos/
+arquivos_redundantes/
+*.txt
+*.md
+!requirements.txt
+!runtime.txt
+!Procfile
+
