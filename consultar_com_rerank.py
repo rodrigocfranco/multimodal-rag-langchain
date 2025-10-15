@@ -22,7 +22,7 @@ if modo_api:
     # ========================================================================
     # MODO API
     # ========================================================================
-    from flask import Flask, request, jsonify
+    from flask import Flask, request, jsonify, render_template_string
     from flask_cors import CORS
     
     app = Flask(__name__)
@@ -249,6 +249,96 @@ if modo_api:
             "status": "online"
         })
     
+    # =============== UI & Upload ===============
+    UPLOAD_HTML = """
+    <!doctype html>
+    <html lang=pt-br>
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Enviar PDF - Knowledge Base</title>
+      <style>
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;max-width:680px;margin:40px auto;padding:0 16px;color:#222}
+        .card{border:1px solid #ddd;border-radius:10px;padding:24px}
+        .muted{color:#666;font-size:14px}
+        .ok{color:#0a7a0a}
+        .err{color:#b00020}
+        input[type=file]{padding:8px}
+        button{padding:10px 16px;border:none;border-radius:8px;background:#1f6feb;color:#fff;cursor:pointer}
+        button:disabled{opacity:.6}
+        .row{margin:12px 0}
+        code{background:#f6f8fa;padding:2px 6px;border-radius:6px}
+      </style>
+    </head>
+    <body>
+      <h2>Enviar PDF para Knowledge Base</h2>
+      <div class="card">
+        <form id="form" enctype="multipart/form-data" method="post" action="/upload">
+          <div class="row">
+            <input type="file" name="file" accept="application/pdf" required />
+          </div>
+          <div class="row">
+            <input type="password" name="api_key" placeholder="API Key (se configurada)" />
+          </div>
+          <div class="row">
+            <button type="submit">Enviar e Processar</button>
+          </div>
+        </form>
+        <div id="out" class="row muted"></div>
+      </div>
+      <p class="muted">Depois, faça perguntas em <code>POST /query</code>.</p>
+      <script>
+        const form = document.getElementById('form');
+        const out = document.getElementById('out');
+        form.addEventListener('submit', async (e)=>{
+          e.preventDefault();
+          out.textContent = 'Enviando...';
+          const data = new FormData(form);
+          try{
+            const res = await fetch('/upload', { method:'POST', body:data });
+            const j = await res.json();
+            if(res.ok){ out.innerHTML = '<span class="ok">✅ '+(j.message||'Processado com sucesso!')+'</span>'; }
+            else{ out.innerHTML = '<span class="err">❌ '+(j.error||'Falha')+'</span>'; }
+          }catch(err){ out.innerHTML = '<span class="err">❌ '+err.message+'</span>'; }
+        });
+      </script>
+    </body>
+    </html>
+    """
+
+    @app.route('/ui', methods=['GET'])
+    def ui():
+        return render_template_string(UPLOAD_HTML)
+
+    @app.route('/upload', methods=['POST'])
+    def upload():
+        # API Key opcional
+        required_key = os.getenv('API_SECRET_KEY')
+        provided = request.form.get('api_key') or request.headers.get('X-API-Key')
+        if required_key and provided != required_key:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        if 'file' not in request.files:
+            return jsonify({"error": "Arquivo não enviado (campo 'file')"}), 400
+        f = request.files['file']
+        if not f.filename.lower().endswith('.pdf'):
+            return jsonify({"error": "Apenas .pdf"}), 400
+
+        os.makedirs('content', exist_ok=True)
+        save_path = os.path.join('content', f.filename)
+        f.save(save_path)
+
+        # Processar usando o script existente
+        try:
+            import subprocess, sys
+            proc = subprocess.run([sys.executable, 'adicionar_pdf.py', save_path], capture_output=True, text=True, timeout=1800)
+            if proc.returncode != 0:
+                return jsonify({"error": proc.stderr.strip() or proc.stdout.strip() or "Falha ao processar"}), 500
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        return jsonify({"message": "PDF processado e adicionado ao knowledge base", "filename": f.filename})
+
     print("=" * 60)
     print("🌐 API COM RERANKER rodando em http://localhost:5001")
     print("=" * 60)
@@ -256,8 +346,10 @@ if modo_api:
     print("\nEndpoints:")
     print("  GET  /        → Página inicial (documentação)")
     print("  GET  /health  → Health check")
+    print("  GET  /ui      → Upload UI")
+    print("  POST /upload  → Enviar PDF (multipart)")
     print("  POST /query   → Fazer pergunta (com rerank)")
-    print("\n💡 Teste no navegador: http://localhost:5001")
+    print("\n💡 Teste no navegador: http://localhost:5001/ui")
     print("\n⚠️  Porta mudada de 5000 → 5001 (5000 usada pelo AirPlay)")
     print("\n" + "=" * 60 + "\n")
     
