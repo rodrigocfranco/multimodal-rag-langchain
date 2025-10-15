@@ -1,3 +1,32 @@
+FROM python:3.11-slim-bookworm
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# BUILD_MARKER v3
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    tesseract-ocr \
+    poppler-utils \
+    poppler-data \
+    libmagic1 \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+COPY . .
+
+# Railway injeta PORT; nossa app lê PORT
+CMD ["python", "consultar_com_rerank.py", "--api"]
+
 FROM python:3.11-slim
 
 ENV PIP_NO_CACHE_DIR=1 \
