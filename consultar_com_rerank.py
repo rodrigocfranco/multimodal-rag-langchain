@@ -258,22 +258,24 @@ if modo_api:
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>Enviar PDF - Knowledge Base</title>
       <style>
-        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;max-width:680px;margin:40px auto;padding:0 16px;color:#222}
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;max-width:800px;margin:40px auto;padding:0 16px;color:#222}
         .card{border:1px solid #ddd;border-radius:10px;padding:24px}
         .muted{color:#666;font-size:14px}
         .ok{color:#0a7a0a}
         .err{color:#b00020}
         input[type=file]{padding:8px}
-        button{padding:10px 16px;border:none;border-radius:8px;background:#1f6feb;color:#fff;cursor:pointer}
+        button{padding:10px 16px;border:none;border-radius:8px;background:#1f6feb;color:#fff;cursor:pointer;margin:5px}
         button:disabled{opacity:.6}
         .row{margin:12px 0}
         code{background:#f6f8fa;padding:2px 6px;border-radius:6px}
+        .progress{background:#f8f9fa;border:1px solid #dee2e6;color:#495057;font-family:monospace;white-space:pre-wrap;max-height:400px;overflow-y:auto;padding:12px;border-radius:6px}
+        .button-group{display:flex;gap:10px;flex-wrap:wrap}
       </style>
     </head>
     <body>
       <h2>Enviar PDF para Knowledge Base</h2>
       <div class="card">
-        <form id="form" enctype="multipart/form-data" method="post" action="/upload">
+        <form id="form" enctype="multipart/form-data">
           <div class="row">
             <input type="file" name="file" accept="application/pdf" required />
           </div>
@@ -281,7 +283,10 @@ if modo_api:
             <input type="password" name="api_key" placeholder="API Key (se configurada)" />
           </div>
           <div class="row">
-            <button type="submit">Enviar e Processar</button>
+            <div class="button-group">
+              <button type="button" id="uploadBtn">📤 Enviar e Processar</button>
+              <button type="button" id="streamBtn">📡 Enviar com acompanhamento (tempo real)</button>
+            </div>
           </div>
         </form>
         <div id="out" class="row muted"></div>
@@ -290,17 +295,88 @@ if modo_api:
       <script>
         const form = document.getElementById('form');
         const out = document.getElementById('out');
-        form.addEventListener('submit', async (e)=>{
+        const uploadBtn = document.getElementById('uploadBtn');
+        const streamBtn = document.getElementById('streamBtn');
+        
+        // Upload normal
+        uploadBtn.addEventListener('click', async (e)=>{
           e.preventDefault();
-          out.textContent = 'Enviando...';
-          const data = new FormData(form);
-          try{
-            const res = await fetch('/upload', { method:'POST', body:data });
-            const j = await res.json();
-            if(res.ok){ out.innerHTML = '<span class="ok">✅ '+(j.message||'Processado com sucesso!')+'</span>'; }
-            else{ out.innerHTML = '<span class="err">❌ '+(j.error||'Falha')+'</span>'; }
-          }catch(err){ out.innerHTML = '<span class="err">❌ '+err.message+'</span>'; }
+          await uploadPDF('/upload');
         });
+        
+        // Upload com streaming
+        streamBtn.addEventListener('click', async (e)=>{
+          e.preventDefault();
+          await uploadPDF('/upload-stream', true);
+        });
+        
+        async function uploadPDF(endpoint, isStreaming = false) {
+          const data = new FormData(form);
+          uploadBtn.disabled = true;
+          streamBtn.disabled = true;
+          
+          if (isStreaming) {
+            streamBtn.textContent = '⏳ Processando...';
+            out.innerHTML = '<div class="progress" id="progress">⏳ Iniciando processamento...\n</div>';
+            
+            try {
+              const res = await fetch(endpoint, { method:'POST', body:data });
+              if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+              
+              const reader = res.body.getReader();
+              const decoder = new TextDecoder();
+              const progressDiv = document.getElementById('progress');
+              
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const data = line.substring(6);
+                    progressDiv.textContent += data + '\n';
+                    progressDiv.scrollTop = progressDiv.scrollHeight;
+                  }
+                }
+              }
+              
+              const finalText = progressDiv.textContent;
+              if (finalText.includes('✅')) {
+                out.innerHTML = '<span class="ok">✅ PDF processado com sucesso!</span>';
+                form.reset();
+              } else {
+                out.innerHTML = '<span class="err">❌ Erro no processamento</span>';
+              }
+              
+            } catch (err) {
+              out.innerHTML = '<span class="err">❌ ' + err.message + '</span>';
+            }
+          } else {
+            uploadBtn.textContent = '⏳ Enviando...';
+            out.textContent = 'Enviando...';
+            
+            try {
+              const res = await fetch(endpoint, { method:'POST', body:data });
+              const j = await res.json();
+              if (res.ok) {
+                out.innerHTML = '<span class="ok">✅ ' + (j.message || 'Processado com sucesso!') + '</span>';
+                form.reset();
+              } else {
+                out.innerHTML = '<span class="err">❌ ' + (j.error || 'Falha') + '</span>';
+              }
+            } catch (err) {
+              out.innerHTML = '<span class="err">❌ ' + err.message + '</span>';
+            }
+          }
+          
+          uploadBtn.disabled = false;
+          streamBtn.disabled = false;
+          uploadBtn.textContent = '📤 Enviar e Processar';
+          streamBtn.textContent = '📡 Enviar com acompanhamento (tempo real)';
+        }
       </script>
     </body>
     </html>
@@ -405,6 +481,55 @@ if modo_api:
             return jsonify({"error": str(e)}), 500
 
         return jsonify({"message": "PDF processado e adicionado ao knowledge base", "filename": f.filename})
+
+    @app.route('/upload-stream', methods=['POST'])
+    def upload_stream():
+        # API Key opcional
+        required_key = os.getenv('API_SECRET_KEY')
+        provided = request.form.get('api_key') or request.headers.get('X-API-Key')
+        if required_key and provided != required_key:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        if 'file' not in request.files:
+            return jsonify({"error": "Arquivo não enviado (campo 'file')"}), 400
+        f = request.files['file']
+        if not f.filename.lower().endswith('.pdf'):
+            return jsonify({"error": "Apenas .pdf"}), 400
+
+        os.makedirs('content', exist_ok=True)
+        save_path = os.path.join('content', f.filename)
+        f.save(save_path)
+
+        def generate():
+            import subprocess, sys
+            try:
+                # Iniciar processo com streaming
+                proc = subprocess.Popen(
+                    [sys.executable, 'adicionar_pdf.py', save_path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+                
+                # Stream output linha por linha
+                for line in iter(proc.stdout.readline, ''):
+                    if line:
+                        yield f"data: {line.strip()}\n\n"
+                
+                # Aguardar processo terminar
+                proc.wait()
+                
+                if proc.returncode == 0:
+                    yield f"data: ✅ PDF processado com sucesso!\n\n"
+                else:
+                    yield f"data: ❌ Erro no processamento (código {proc.returncode})\n\n"
+                    
+            except Exception as e:
+                yield f"data: ❌ Erro: {str(e)}\n\n"
+
+        return Response(generate(), mimetype='text/plain')
 
     print("=" * 60)
     print("🌐 API COM RERANKER rodando em http://localhost:5001")
