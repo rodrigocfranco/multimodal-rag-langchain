@@ -10,13 +10,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Verificar API key do Cohere
+if not os.getenv("COHERE_API_KEY"):
+    print("❌ COHERE_API_KEY não configurada no .env")
+    print("Adicione: COHERE_API_KEY=sua_chave")
+    exit(1)
+
 modo_api = '--api' in sys.argv
 
 if modo_api:
     # ========================================================================
     # MODO API
     # ========================================================================
-    from flask import Flask, request, jsonify, render_template_string
+    from flask import Flask, request, jsonify, render_template_string, Response
     from flask_cors import CORS
     
     app = Flask(__name__)
