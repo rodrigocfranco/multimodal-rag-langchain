@@ -1,30 +1,30 @@
 # Unstructured - para extração de dados de PDFs
-unstructured[all-docs]==0.12.4
-unstructured-inference==0.7.23
-pillow==10.2.0
-lxml==5.1.0
+unstructured[all-docs]
+unstructured-inference
+pillow
+lxml
 
 # OpenCV (headless para ambientes sem GUI)
-opencv-python-headless==4.9.0.80
+opencv-python-headless
 
 # Vector store e embeddings
-chromadb==0.4.22
-langchain-chroma==0.1.0
-tiktoken==0.6.0
+chromadb
+langchain-chroma
+tiktoken
 
 # LangChain
-langchain==0.1.10
-langchain-community==0.0.24
-langchain-openai==0.0.8
-langchain-groq==0.0.1
+langchain
+langchain-community
+langchain-openai
+langchain-groq
 
 # Cohere (para reranking - melhora precisão em 30-40%)
-langchain-cohere==0.1.0
-cohere==5.0.4
+langchain-cohere
+cohere
 
 # API REST
-flask==3.0.2
-flask-cors==4.0.0
+flask
+flask-cors
 
 # Utilitários
-python-dotenv==1.0.1
+python-dotenv
