@@ -36,9 +36,5 @@ COPY content/ ./content/
 # Criar diretório para knowledge base
 RUN mkdir -p knowledge_base
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:${PORT}/health', timeout=5)" || exit 1
-
 # Comando para iniciar a API
 CMD ["python", "consultar_com_rerank.py", "--api"]

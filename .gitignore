@@ -47,3 +47,11 @@ PROJETO_FINAL.txt
 RERANKER_CORRIGIDO.txt
 arquivos_antigos/
 arquivos_redundantes/
+DEPLOY_CLOUD.md
+EXPOR_API_NGROK.md
+GUIA_N8N.md
+RERANKER.md
+.railwayignore
+
+# Conteúdo (PDFs) - não versionar para reduzir tamanho do repo
+content/*.pdf
