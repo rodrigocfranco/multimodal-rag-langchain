@@ -1,10 +1,12 @@
 FROM python:3.11-slim-bookworm
 
+# Variáveis de ambiente para otimização
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PORT=8080
 
-# BUILD_MARKER v5 - Force deploy to correct project
+# Instalar dependências do sistema necessárias para Unstructured + OpenCV + Tesseract + Poppler
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
@@ -12,51 +14,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     tesseract-ocr \
+    tesseract-ocr-por \
     poppler-utils \
     poppler-data \
     libmagic1 \
+    libgomp1 \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# Instalar dependências Python
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install -r requirements.txt
 
-COPY . .
+# Copiar código da aplicação
+COPY *.py .
+COPY content/ ./content/
 
-# Railway injeta PORT; nossa app lê PORT
-CMD ["python", "consultar_com_rerank.py", "--api"]
+# Criar diretório para knowledge base
+RUN mkdir -p knowledge_base
 
-FROM python:3.11-slim
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD python -c "import requests; requests.get('http://localhost:${PORT}/health', timeout=5)" || exit 1
 
-ENV PIP_NO_CACHE_DIR=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Dependências de sistema para Unstructured + OpenCV + Tesseract + Poppler + libmagic
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    tesseract-ocr \
-    poppler-utils \
-    poppler-data \
-    libmagic1 \
-  && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Instala dependências Python
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# Copia o app
-COPY . .
-
-# Porta definida pelo Railway (POR PADRÃO ELE USA 8080, mas leremos PORT)
-ENV PORT=8080
-
-# Executa nossa API (modo hi_res por padrão)
+# Comando para iniciar a API
 CMD ["python", "consultar_com_rerank.py", "--api"]

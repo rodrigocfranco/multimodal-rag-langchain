@@ -1,0 +1,49 @@
+# Python
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Knowledge Base
+knowledge_base/
+vectorstores/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints
+
+# Logs
+*.log
+
+# Arquivos temporários
+*.tmp
+*.bak
+*.cache
+
+# Arquivos de documentação redundantes
+INICIO.txt
+USAR_RERANKER.txt
+PROJETO_FINAL_COMPLETO.txt
+PROJETO_FINAL.txt
+RERANKER_CORRIGIDO.txt
+arquivos_antigos/
+arquivos_redundantes/
