@@ -12,12 +12,6 @@ load_dotenv()
 
 modo_api = '--api' in sys.argv
 
-# Verificar API key do Cohere (apenas modo terminal)
-if not modo_api and not os.getenv("COHERE_API_KEY"):
-    print("❌ COHERE_API_KEY não configurada no .env")
-    print("Adicione: COHERE_API_KEY=sua_chave")
-    exit(1)
-
 if modo_api:
     # ========================================================================
     # MODO API
