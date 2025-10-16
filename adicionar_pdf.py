@@ -90,10 +90,16 @@ for chunk in chunks:
                     if "Table" in str(type(orig_el).__name__) and orig_el not in tables:
                         tables.append(orig_el)
 
-# Extrair imagens (com deduplicação)
+# Extrair imagens (com deduplicação e filtro de tamanho)
 def get_images(chunks):
     seen_hashes = set()
     images = []
+    filtered_count = 0  # Contar imagens filtradas
+    duplicate_count = 0  # Contar duplicatas
+
+    # Filtrar imagens pequenas (ícones, bullets, logos, decorações)
+    # PDFs médicos geralmente têm figuras/gráficos maiores que 5KB
+    MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "5"))
 
     for chunk in chunks:
         # Imagens diretas
@@ -101,11 +107,18 @@ def get_images(chunks):
             if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'image_base64'):
                 img = chunk.metadata.image_base64
                 if img and len(img) > 100:
-                    # Usar hash para deduplicar
-                    img_hash = hash(img[:1000])  # Hash dos primeiros 1000 chars
-                    if img_hash not in seen_hashes:
-                        seen_hashes.add(img_hash)
-                        images.append(img)
+                    # Filtrar por tamanho (remover ícones pequenos)
+                    size_kb = len(img) / 1024
+                    if size_kb >= MIN_IMAGE_SIZE_KB:
+                        # Usar hash para deduplicar
+                        img_hash = hash(img[:1000])  # Hash dos primeiros 1000 chars
+                        if img_hash not in seen_hashes:
+                            seen_hashes.add(img_hash)
+                            images.append(img)
+                        else:
+                            duplicate_count += 1
+                    else:
+                        filtered_count += 1
 
         # Imagens dentro de elementos compostos
         elif hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'orig_elements'):
@@ -114,15 +127,36 @@ def get_images(chunks):
                     if "Image" in str(type(el).__name__) and hasattr(el.metadata, 'image_base64'):
                         img = el.metadata.image_base64
                         if img and len(img) > 100:
-                            # Usar hash para deduplicar
-                            img_hash = hash(img[:1000])
-                            if img_hash not in seen_hashes:
-                                seen_hashes.add(img_hash)
-                                images.append(img)
-    return images
+                            # Filtrar por tamanho
+                            size_kb = len(img) / 1024
+                            if size_kb >= MIN_IMAGE_SIZE_KB:
+                                # Usar hash para deduplicar
+                                img_hash = hash(img[:1000])
+                                if img_hash not in seen_hashes:
+                                    seen_hashes.add(img_hash)
+                                    images.append(img)
+                                else:
+                                    duplicate_count += 1
+                            else:
+                                filtered_count += 1
 
-images = get_images(chunks)
-print(f"   ✓ {len(texts)} textos, {len(tables)} tabelas, {len(images)} imagens\n")
+    return images, filtered_count, duplicate_count
+
+images, filtered_count, duplicate_count = get_images(chunks)
+
+# Modo debug: mostrar detalhes das imagens
+if os.getenv("DEBUG_IMAGES"):
+    print("\n   [DEBUG] Detalhes das imagens extraídas:")
+    for i, img in enumerate(images):
+        size_kb = len(img) / 1024
+        print(f"     Imagem {i+1}: {size_kb:.1f} KB")
+    print(f"   [DEBUG] Filtradas (muito pequenas): {filtered_count}")
+    print(f"   [DEBUG] Duplicatas removidas: {duplicate_count}")
+
+print(f"   ✓ {len(texts)} textos, {len(tables)} tabelas, {len(images)} imagens")
+if filtered_count > 0 or duplicate_count > 0:
+    print(f"      (filtradas: {filtered_count} pequenas, {duplicate_count} duplicatas)")
+print()
 
 # ===========================================================================
 # GERAR RESUMOS COM IA
