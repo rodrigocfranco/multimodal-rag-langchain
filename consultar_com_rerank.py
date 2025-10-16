@@ -12,7 +12,7 @@ load_dotenv()
 
 # Verificar API key do Cohere
 if not os.getenv("COHERE_API_KEY"):
-    print("❌ COHERE_API_KEY não configurada no .env")
+    print("COHERE_API_KEY não configurada no .env")
     print("Adicione: COHERE_API_KEY=sua_chave")
     exit(1)
 
@@ -303,7 +303,7 @@ if modo_api:
         uploadBtn.addEventListener('click', async (e)=>{
           e.preventDefault();
           if (!fileInput.files || fileInput.files.length === 0) {
-            out.innerHTML = '<span class="err">❌ Por favor, selecione um arquivo PDF primeiro</span>';
+            out.innerHTML = '<span class="err">Por favor, selecione um arquivo PDF primeiro</span>';
             return;
           }
           await uploadPDF('/upload');
@@ -313,7 +313,7 @@ if modo_api:
         streamBtn.addEventListener('click', async (e)=>{
           e.preventDefault();
           if (!fileInput.files || fileInput.files.length === 0) {
-            out.innerHTML = '<span class="err">❌ Por favor, selecione um arquivo PDF primeiro</span>';
+            out.innerHTML = '<span class="err">Por favor, selecione um arquivo PDF primeiro</span>';
             return;
           }
           await uploadPDF('/upload-stream', true);
@@ -378,14 +378,14 @@ if modo_api:
               console.log('JSON:', j);
 
               if (res.ok) {
-                out.innerHTML = '<span class="ok">✅ ' + (j.message || 'Processado com sucesso!') + '</span>';
+                out.innerHTML = '<span class="ok"> ' + (j.message || 'Processado com sucesso!') + '</span>';
                 form.reset();
               } else {
-                out.innerHTML = '<span class="err">❌ ' + (j.error || 'Falha') + '</span>';
+                out.innerHTML = '<span class="err"> ' + (j.error || 'Falha') + '</span>';
               }
             } catch (err) {
               console.error('Erro no upload:', err);
-              out.innerHTML = '<span class="err">❌ Erro: ' + err.message + '</span>';
+              out.innerHTML = '<span class="err"> Erro: ' + err.message + '</span>';
             }
           }
           
