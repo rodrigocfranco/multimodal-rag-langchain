@@ -326,8 +326,8 @@ if modo_api:
           out.innerHTML = '';
           
           if (isStreaming) {
-            streamBtn.textContent = '⏳ Processando...';
-            out.innerHTML = '<div class="progress" id="progress">⏳ Iniciando processamento...\n</div>';
+            streamBtn.textContent = 'Processando...';
+            out.innerHTML = '<div class="progress" id="progress">Iniciando processamento...\n</div>';
             
             try {
               const res = await fetch(endpoint, { method:'POST', body:data });
@@ -354,20 +354,20 @@ if modo_api:
               }
               
               const finalText = progressDiv.textContent;
-              if (finalText.includes('✅')) {
-                out.innerHTML = '<span class="ok">✅ PDF processado com sucesso!</span>';
+              if (finalText.includes('PDF processado com sucesso')) {
+                out.innerHTML = '<span class="ok">SUCESSO: PDF processado com sucesso!</span>';
                 form.reset();
               } else {
-                out.innerHTML = '<span class="err">❌ Erro no processamento</span>';
+                out.innerHTML = '<span class="err">ERRO: Erro no processamento</span>';
               }
-              
+
             } catch (err) {
               console.error('Erro no upload streaming:', err);
-              out.innerHTML = '<span class="err">❌ Erro: ' + err.message + '</span>';
+              out.innerHTML = '<span class="err">ERRO: ' + err.message + '</span>';
             }
           } else {
-            uploadBtn.textContent = '⏳ Enviando...';
-            out.innerHTML = '<p class="muted">⏳ Enviando arquivo... Isso pode levar alguns minutos.</p>';
+            uploadBtn.textContent = 'Enviando...';
+            out.innerHTML = '<p class="muted">Enviando arquivo... Isso pode levar alguns minutos.</p>';
 
             try {
               console.log('Iniciando upload para:', endpoint);

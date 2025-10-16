@@ -30,6 +30,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 
 # Copiar código da aplicação
 COPY *.py .
+COPY *.html .
 COPY content/ ./content/
 
 # Criar diretório para knowledge base
