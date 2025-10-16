@@ -59,14 +59,14 @@ if modo_api:
     if os.path.exists(docstore_path):
         with open(docstore_path, 'rb') as f:
             store.store = pickle.load(f)
-    
+
     base_retriever = MultiVectorRetriever(
         vectorstore=vectorstore,
         docstore=store,
         id_key="doc_id",
-        search_kwargs={"k": 10}  # Busca 10 para rerank
+        search_kwargs={"k": 20}  # ✅ OTIMIZADO: Sobre-recupera para compensar ChromaDB sem indexação
     )
-    
+
     # Wrapper para converter objetos Unstructured em Documents
     class DocumentConverter(BaseRetriever):
         retriever: MultiVectorRetriever
@@ -474,6 +474,67 @@ if modo_api:
     def chat():
         return render_template_string(CHAT_HTML)
 
+    # =============== Document Management ===============
+    from document_manager import get_all_documents, get_document_by_id, delete_document as delete_doc_func, get_global_stats
+
+    @app.route('/documents', methods=['GET'])
+    def list_documents():
+        """Lista todos documentos processados"""
+        try:
+            result = get_all_documents(persist_directory)
+            stats = get_global_stats(persist_directory)
+
+            return jsonify({
+                "documents": result['documents'],
+                "total": result['total'],
+                "stats": stats
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route('/documents/<pdf_id>', methods=['GET'])
+    def get_document_details(pdf_id):
+        """Retorna detalhes de um documento específico"""
+        try:
+            doc_info = get_document_by_id(pdf_id, persist_directory)
+
+            if not doc_info:
+                return jsonify({"error": "Documento não encontrado"}), 404
+
+            return jsonify(doc_info), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route('/documents/<pdf_id>', methods=['DELETE'])
+    def delete_document_endpoint(pdf_id):
+        """Deleta um documento e todos seus chunks"""
+        # Validar API key se configurada
+        required_key = os.getenv('API_SECRET_KEY')
+        provided = request.headers.get('X-API-Key')
+        if required_key and provided != required_key:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        try:
+            result = delete_doc_func(pdf_id, persist_directory)
+
+            if result['status'] == 'success':
+                return jsonify(result), 200
+            elif result['status'] == 'not_found':
+                return jsonify(result), 404
+            else:
+                return jsonify(result), 500
+        except Exception as e:
+            return jsonify({"error": str(e), "status": "error"}), 500
+
+    @app.route('/manage', methods=['GET'])
+    def manage():
+        """UI de gerenciamento de documentos"""
+        try:
+            with open('ui_manage.html', 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            return "<h1>UI de gerenciamento não encontrada</h1><p>Arquivo ui_manage.html não existe.</p>", 404
+
     @app.route('/upload', methods=['POST'])
     def upload():
         # API Key opcional
@@ -618,13 +679,13 @@ else:
         vectorstore=vectorstore,
         docstore=store,
         id_key="doc_id",
-        search_kwargs={"k": 10}  # Busca 10 para rerank
+        search_kwargs={"k": 20}  # ✅ OTIMIZADO: Sobre-recupera para compensar ChromaDB sem indexação
     )
-    
+
     # Wrapper para converter objetos Unstructured em Documents
     class DocumentConverter(BaseRetriever):
         retriever: MultiVectorRetriever
-        
+
         def _get_relevant_documents(
             self, query: str, *, run_manager: CallbackManagerForRetrieverRun
         ) -> List[Document]:
@@ -644,7 +705,7 @@ else:
                         else:
                             # ElementMetadata → dict
                             metadata = doc.metadata.to_dict() if hasattr(doc.metadata, 'to_dict') else {}
-                    
+
                     converted.append(Document(
                         page_content=doc.text,
                         metadata=metadata
@@ -654,10 +715,10 @@ else:
                 else:
                     converted.append(Document(page_content=str(doc), metadata={}))
             return converted
-    
+
     # Wrapper do retriever para converter objetos
     wrapped_retriever = DocumentConverter(retriever=base_retriever)
-    
+
     # 🔥 RERANKER COHERE
     print("🔥 Inicializando Cohere Reranker...")
     compressor = CohereRerank(
@@ -687,7 +748,7 @@ else:
             print(f"  • {p['filename']} ({p['texts']}T, {p['tables']}Tab, {p['images']}I)")
     print("=" * 60)
     print("\n🔥 Reranker ativado: Cohere Multilingual v3.0")
-    print("   → Busca inicial: ~10 resultados")
+    print("   → Busca inicial: ~20 resultados (otimizado)")
     print("   → Após rerank: Top 5 mais relevantes")
     print("   → Melhoria de precisão: 30-40%\n")
     print("💡 Faça perguntas - busca em TODOS os PDFs com reranking!")

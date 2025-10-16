@@ -7,8 +7,9 @@ Sistema completo de RAG (Retrieval-Augmented Generation) multimodal com LangChai
 - **Extração Multimodal**: Processa textos, tabelas e imagens de PDFs
 - **Resumos com IA**: Gera resumos automáticos de todos os elementos usando Llama 3.1
 - **Reranking Inteligente**: Usa Cohere para melhorar precisão em 30-40%
-- **API REST**: Endpoints para upload de PDFs e consultas
-- **Interface Web**: UI para upload e chat interativo
+- **Gerenciamento de Documentos**: Sistema completo com IDs únicos, metadata tracking e deleção
+- **API REST**: Endpoints para upload, consultas e gerenciamento de documentos
+- **Interface Web**: UI para upload, chat interativo e gerenciamento
 - **Streaming**: Acompanhamento em tempo real do processamento
 - **Deploy Fácil**: Pronto para Railway com Dockerfile otimizado
 
@@ -172,6 +173,15 @@ Interface web para chat interativo
 https://seu-app.railway.app/chat
 ```
 
+#### GET `/manage`
+Interface web para gerenciamento de documentos
+
+```
+https://seu-app.railway.app/manage
+```
+
+Permite visualizar, gerenciar e deletar documentos processados.
+
 #### POST `/upload`
 Enviar PDF para processar (multipart/form-data)
 
@@ -203,6 +213,57 @@ Resposta:
   "answer": "O tratamento para hipertensão inclui...",
   "sources": ["artigo_hipertensao.pdf"],
   "reranked": true
+}
+```
+
+#### GET `/documents`
+Listar todos os documentos processados
+
+```bash
+curl https://seu-app.railway.app/documents
+```
+
+Resposta:
+```json
+{
+  "documents": [
+    {
+      "pdf_id": "a3f8b2c1d4e5f6789...",
+      "filename": "artigo.pdf",
+      "uploaded_at": "2024-01-15 10:30:00",
+      "stats": {"texts": 50, "tables": 5, "images": 3, "total_chunks": 58}
+    }
+  ],
+  "total": 1,
+  "stats": {
+    "total_documents": 1,
+    "total_chunks": 58,
+    "total_size_bytes": 2048576
+  }
+}
+```
+
+#### GET `/documents/<pdf_id>`
+Obter detalhes de um documento específico
+
+```bash
+curl https://seu-app.railway.app/documents/a3f8b2c1d4e5f6789...
+```
+
+#### DELETE `/documents/<pdf_id>`
+Deletar um documento e todos seus chunks/embeddings
+
+```bash
+curl -X DELETE https://seu-app.railway.app/documents/a3f8b2c1d4e5f6789... \
+  -H "X-API-Key: sua-chave-secreta"
+```
+
+Resposta:
+```json
+{
+  "status": "success",
+  "deleted_chunks": 58,
+  "pdf_id": "a3f8b2c1d4e5f6789..."
 }
 ```
 
@@ -248,7 +309,9 @@ curl -X POST https://seu-app.railway.app/query \
 multimodal-rag-langchain/
 ├── adicionar_pdf.py              # Script para adicionar PDFs
 ├── consultar_com_rerank.py       # API + Terminal com reranking
+├── document_manager.py           # Sistema de gerenciamento de documentos
 ├── consultar.py                  # Terminal sem reranking (deprecado)
+├── ui_manage.html                # Interface de gerenciamento
 ├── requirements.txt              # Dependências Python
 ├── Dockerfile                    # Container para Railway
 ├── railway.json                  # Configuração Railway
@@ -258,6 +321,9 @@ multimodal-rag-langchain/
 ├── .gitignore                    # Arquivos ignorados
 ├── content/                      # PDFs fonte
 └── knowledge_base/               # Vector store (não versionado)
+    ├── chroma.sqlite3            # ChromaDB database
+    ├── docstore.pkl              # Document store
+    └── metadata.pkl              # Document metadata & tracking
 ```
 
 ## Como Funciona
@@ -266,11 +332,14 @@ multimodal-rag-langchain/
 
 ```python
 adicionar_pdf.py
+├── Gera PDF_ID único (SHA256 hash do arquivo)
+├── Verifica duplicatas
 ├── Extrai elementos com Unstructured (hi_res strategy)
-├── Separa textos, tabelas e imagens
+├── Separa textos, tabelas e imagens (com filtro de tamanho)
 ├── Gera resumos com IA (Llama 3.1 via Groq)
 ├── Armazena no ChromaDB com embeddings OpenAI
-└── Salva metadados para tracking
+├── Adiciona metadata completa em todos chunks (pdf_id, page, timestamp, etc.)
+└── Salva tracking em metadata.pkl para gerenciamento
 ```
 
 ### 2. Consulta com Reranking
@@ -283,6 +352,24 @@ consultar_com_rerank.py
 ├── Envia para GPT-4o-mini com visão
 └── Retorna resposta + fontes
 ```
+
+### 3. Gerenciamento de Documentos
+
+```python
+document_manager.py
+├── generate_pdf_id(): Gera hash SHA256 único do PDF
+├── get_all_documents(): Lista todos PDFs processados
+├── get_document_by_id(): Detalhes de um documento
+├── delete_document(): Remove documento + todos chunks/embeddings
+├── check_duplicate(): Verifica se PDF já foi processado
+└── get_global_stats(): Estatísticas do knowledge base
+```
+
+**UI de Gerenciamento** (`/manage`):
+- Visualizar todos documentos com estatísticas
+- Ver detalhes (chunks, tamanho, data de upload)
+- Deletar documentos individualmente
+- Auto-refresh a cada 30 segundos
 
 ## Variáveis de Ambiente
 
@@ -297,8 +384,11 @@ COHERE_API_KEY=...              # Cohere (reranking)
 ### Opcionais
 
 ```bash
-API_SECRET_KEY=...              # Proteger upload (opcional)
+API_SECRET_KEY=...              # Proteger upload e deleção (opcional)
 UNSTRUCTURED_STRATEGY=hi_res    # ou "fast" (padrão: hi_res)
+MIN_IMAGE_SIZE_KB=5             # Filtro mínimo de tamanho para imagens
+DEBUG_IMAGES=false              # Debug da extração de imagens
+AUTO_REPROCESS=false            # Reprocessar PDFs duplicados automaticamente
 LANGCHAIN_API_KEY=...           # Tracing (opcional)
 LANGCHAIN_TRACING_V2=true       # Habilitar tracing
 PORT=8080                       # Porta da API (Railway define auto)

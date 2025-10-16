@@ -8,6 +8,7 @@ import os
 import sys
 from dotenv import load_dotenv
 import time
+from document_manager import generate_pdf_id, check_duplicate
 
 load_dotenv()
 
@@ -37,6 +38,35 @@ print("⏳ Aguarde 5-10 minutos...\n")
 
 # Vectorstore unificado
 persist_directory = "./knowledge_base"
+
+# ===========================================================================
+# GERAR PDF_ID E VERIFICAR DUPLICATA
+# ===========================================================================
+print("🔍 Gerando ID do documento...")
+pdf_id = generate_pdf_id(file_path)
+file_size = os.path.getsize(file_path)
+uploaded_at = time.strftime("%Y-%m-%d %H:%M:%S")
+
+print(f"   PDF_ID: {pdf_id[:16]}...")
+print(f"   Tamanho: {file_size / 1024 / 1024:.2f} MB")
+
+# Verificar se PDF já foi processado
+existing_doc = check_duplicate(file_path, persist_directory)
+if existing_doc:
+    print(f"\n⚠️  Este PDF já foi processado!")
+    print(f"   Adicionado em: {existing_doc.get('uploaded_at', 'desconhecido')}")
+    print(f"   Chunks: {existing_doc.get('stats', {}).get('total_chunks', 0)}")
+
+    if os.getenv("AUTO_REPROCESS") != "true":
+        choice = input("\nReprocessar? (s/N): ")
+        if choice.lower() != 's':
+            print("❌ Processamento cancelado.")
+            exit(0)
+        print("\n🔄 Reprocessando documento...\n")
+    else:
+        print("\n🔄 AUTO_REPROCESS=true, reprocessando automaticamente...\n")
+else:
+    print("✅ Documento novo, prosseguindo...\n")
 
 # ===========================================================================
 # EXTRAIR E PROCESSAR PDF
@@ -89,6 +119,152 @@ for chunk in chunks:
                 for orig_el in orig_elements:
                     if "Table" in str(type(orig_el).__name__) and orig_el not in tables:
                         tables.append(orig_el)
+
+# ===========================================================================
+# FUNÇÕES DE EXTRAÇÃO DE METADATA MÉDICO
+# ===========================================================================
+def extract_section_heading(text_element):
+    """
+    Extrai section heading de elementos de texto
+    Detecta seções médicas comuns em artigos científicos
+
+    Args:
+        text_element: Elemento de texto do Unstructured
+
+    Returns:
+        str: Nome da seção (Title case) ou None se não detectado
+    """
+    # Verificar se elemento tem metadata
+    if not hasattr(text_element, 'metadata'):
+        return None
+
+    # Unstructured detecta categorias automaticamente
+    if hasattr(text_element.metadata, 'category'):
+        cat = text_element.metadata.category
+
+        # Se for Title, tentar identificar qual seção
+        if cat == 'Title':
+            text = text_element.text if hasattr(text_element, 'text') else str(text_element)
+            text_lower = text.lower().strip()
+
+            # Seções médicas/científicas comuns (em português e inglês)
+            medical_sections = {
+                # Português
+                'resumo': 'Resumo',
+                'abstract': 'Abstract',
+                'introdução': 'Introdução',
+                'introduction': 'Introduction',
+                'contexto': 'Contexto',
+                'background': 'Background',
+                'objetivos': 'Objetivos',
+                'objectives': 'Objectives',
+                'métodos': 'Métodos',
+                'metodologia': 'Metodologia',
+                'methods': 'Methods',
+                'methodology': 'Methodology',
+                'materiais e métodos': 'Materiais e Métodos',
+                'materials and methods': 'Materials and Methods',
+                'resultados': 'Resultados',
+                'results': 'Results',
+                'discussão': 'Discussão',
+                'discussion': 'Discussion',
+                'conclusão': 'Conclusão',
+                'conclusões': 'Conclusão',  # Mapeia para singular
+                'conclusion': 'Conclusion',
+                'conclusions': 'Conclusion',  # Mapeia para singular
+                'referências': 'Referências',
+                'references': 'References',
+                'bibliografia': 'Bibliografia',
+                'agradecimentos': 'Agradecimentos',
+                'acknowledgments': 'Acknowledgments',
+                'acknowledgements': 'Acknowledgements',
+                # Seções médicas específicas
+                'relato de caso': 'Relato de Caso',
+                'case report': 'Case Report',
+                'apresentação do caso': 'Apresentação do Caso',
+                'case presentation': 'Case Presentation',
+                'achados clínicos': 'Achados Clínicos',
+                'clinical findings': 'Clinical Findings',
+                'diagnóstico': 'Diagnóstico',
+                'diagnosis': 'Diagnosis',
+                'diagnóstico diferencial': 'Diagnóstico Diferencial',
+                'differential diagnosis': 'Differential Diagnosis',
+                'tratamento': 'Tratamento',
+                'treatment': 'Treatment',
+                'terapêutica': 'Terapêutica',
+                'therapeutics': 'Therapeutics',
+                'manejo': 'Manejo',
+                'management': 'Management',
+                'evolução': 'Evolução',
+                'outcome': 'Outcome',
+                'desfecho': 'Desfecho',
+                'follow-up': 'Follow-up',
+                'acompanhamento': 'Acompanhamento',
+                'complicações': 'Complicações',
+                'complications': 'Complications',
+                'efeitos adversos': 'Efeitos Adversos',
+                'adverse effects': 'Adverse Effects',
+            }
+
+            # Procurar match exato ou por substring
+            for key, value in medical_sections.items():
+                if key in text_lower:
+                    return value
+
+    return None
+
+
+def infer_document_type(filename):
+    """
+    Infere tipo de documento médico pelo nome do arquivo
+
+    Args:
+        filename: Nome do arquivo PDF
+
+    Returns:
+        str: Tipo do documento (lowercase com underscore)
+    """
+    filename_lower = filename.lower()
+
+    # Artigos de revisão
+    if any(word in filename_lower for word in ['artigo de revisão', 'review article', 'review -', '- review']):
+        return 'review_article'
+
+    # Guidelines / Diretrizes
+    if any(word in filename_lower for word in ['guideline', 'diretriz', 'consenso', 'consensus', 'recomendações']):
+        return 'clinical_guideline'
+
+    # Relatos de caso
+    if any(word in filename_lower for word in ['case report', 'relato de caso', 'case series']):
+        return 'case_report'
+
+    # Ensaios clínicos / RCTs
+    if any(word in filename_lower for word in ['rct', 'trial', 'ensaio clínico', 'clinical trial', 'randomized']):
+        return 'clinical_trial'
+
+    # Meta-análises
+    if any(word in filename_lower for word in ['meta-analysis', 'metanálise', 'meta-análise', 'systematic review', 'revisão sistemática']):
+        return 'meta_analysis'
+
+    # Estudos de coorte
+    if any(word in filename_lower for word in ['cohort', 'coorte', 'prospective study', 'estudo prospectivo']):
+        return 'cohort_study'
+
+    # Estudos observacionais
+    if any(word in filename_lower for word in ['observational', 'observacional', 'cross-sectional', 'transversal']):
+        return 'observational_study'
+
+    # Artigos originais / pesquisa
+    if any(word in filename_lower for word in ['original article', 'artigo original', 'research article', 'research paper']):
+        return 'original_research'
+
+    # Editoriais / Comentários
+    if any(word in filename_lower for word in ['editorial', 'commentary', 'comentário', 'perspective']):
+        return 'editorial'
+
+    # Default: artigo médico genérico
+    return 'medical_article'
+
 
 # Extrair imagens (com deduplicação e filtro de tamanho)
 def get_images(chunks):
@@ -259,16 +435,36 @@ retriever = MultiVectorRetriever(
     id_key="doc_id",
 )
 
+# Inferir document_type uma vez (baseado no filename)
+document_type = infer_document_type(pdf_filename)
+print(f"   Tipo detectado: {document_type}")
+
 # Adicionar com metadados
+chunk_ids = []  # Para tracking
 for i, summary in enumerate(text_summaries):
     doc_id = str(uuid.uuid4())
+    chunk_ids.append(doc_id)
+
+    # Extrair page_number se disponível
+    page_num = None
+    if hasattr(texts[i], 'metadata') and hasattr(texts[i].metadata, 'page_number'):
+        page_num = texts[i].metadata.page_number
+
+    # Extrair section heading (contexto médico)
+    section = extract_section_heading(texts[i])
+
     doc = Document(
         page_content=summary,
         metadata={
             "doc_id": doc_id,
+            "pdf_id": pdf_id,  # ✅ ID do PDF
             "source": pdf_filename,
             "type": "text",
-            "index": i
+            "index": i,
+            "page_number": page_num,
+            "uploaded_at": uploaded_at,
+            "section": section,              # ✅ NOVO: Seção do documento
+            "document_type": document_type,  # ✅ NOVO: Tipo de documento
         }
     )
     
@@ -295,13 +491,28 @@ for i, summary in enumerate(text_summaries):
 
 for i, summary in enumerate(table_summaries):
     doc_id = str(uuid.uuid4())
+    chunk_ids.append(doc_id)
+
+    # Extrair page_number se disponível
+    page_num = None
+    if hasattr(tables[i], 'metadata') and hasattr(tables[i].metadata, 'page_number'):
+        page_num = tables[i].metadata.page_number
+
+    # Extrair section heading (tabelas geralmente têm context)
+    section = extract_section_heading(tables[i])
+
     doc = Document(
         page_content=summary,
         metadata={
             "doc_id": doc_id,
+            "pdf_id": pdf_id,  # ✅ ID do PDF
             "source": pdf_filename,
             "type": "table",
-            "index": i
+            "index": i,
+            "page_number": page_num,
+            "uploaded_at": uploaded_at,
+            "section": section,              # ✅ NOVO: Seção do documento
+            "document_type": document_type,  # ✅ NOVO: Tipo de documento
         }
     )
     
@@ -328,13 +539,20 @@ for i, summary in enumerate(table_summaries):
 
 for i, summary in enumerate(image_summaries):
     doc_id = str(uuid.uuid4())
+    chunk_ids.append(doc_id)
+
     doc = Document(
         page_content=summary,
         metadata={
             "doc_id": doc_id,
+            "pdf_id": pdf_id,  # ✅ ID do PDF
             "source": pdf_filename,
             "type": "image",
-            "index": i
+            "index": i,
+            "page_number": None,  # Imagens geralmente não têm page_number
+            "uploaded_at": uploaded_at,
+            "section": None,                 # Imagens geralmente não têm seção detectável
+            "document_type": document_type,  # ✅ NOVO: Tipo de documento
         }
     )
     
@@ -353,30 +571,53 @@ if os.path.exists(metadata_path):
     with open(metadata_path, 'rb') as f:
         metadata = pickle.load(f)
 
-if 'pdfs' not in metadata:
-    metadata['pdfs'] = []
+# Migrar estrutura antiga se necessário
+if 'pdfs' in metadata and 'documents' not in metadata:
+    metadata['documents'] = {}
+    # Converter estrutura antiga
+    for old_pdf in metadata.get('pdfs', []):
+        # Não temos pdf_id nos dados antigos, usar filename como chave temporária
+        pass
 
-pdf_info = {
+if 'documents' not in metadata:
+    metadata['documents'] = {}
+
+processed_at = time.strftime("%Y-%m-%d %H:%M:%S")
+
+# Informações do documento
+doc_info = {
+    "pdf_id": pdf_id,
     "filename": pdf_filename,
-    "texts": len(texts),
-    "tables": len(tables),
-    "images": len(images),
-    "added": time.strftime("%Y-%m-%d %H:%M")
+    "original_filename": os.path.basename(file_path),
+    "file_size": file_size,
+    "hash": pdf_id,
+    "uploaded_at": uploaded_at,
+    "processed_at": processed_at,
+    "stats": {
+        "texts": len(texts),
+        "tables": len(tables),
+        "images": len(images),
+        "total_chunks": len(chunk_ids)
+    },
+    "chunk_ids": chunk_ids,
+    "status": "processed",
+    "error": None
 }
 
-existing = [p for p in metadata['pdfs'] if p['filename'] == pdf_filename]
-if existing:
-    metadata['pdfs'] = [pdf_info if p['filename'] == pdf_filename else p for p in metadata['pdfs']]
-else:
-    metadata['pdfs'].append(pdf_info)
+# Atualizar ou adicionar
+metadata['documents'][pdf_id] = doc_info
 
 with open(metadata_path, 'wb') as f:
     pickle.dump(metadata, f)
 
 print(f"   ✓ Adicionado!\n")
 print("📚 Knowledge Base:")
-for p in metadata['pdfs']:
-    print(f"  • {p['filename']} ({p['texts']}T, {p['tables']}Tab, {p['images']}I)")
+print(f"   PDF_ID: {pdf_id[:32]}...")
+print(f"   Chunks: {len(chunk_ids)} ({len(texts)}T + {len(tables)}Tab + {len(images)}I)")
+print(f"   Processado em: {processed_at}")
 
-print(f"\n✅ Pronto! Use: python consultar.py")
+print(f"\n✅ Pronto! Use:")
+print(f"   - python consultar.py (terminal)")
+print(f"   - /chat (web UI)")
+print(f"   - /manage (gerenciar documentos)")
 
