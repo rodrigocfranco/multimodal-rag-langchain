@@ -156,7 +156,7 @@ if modo_api:
     def build_prompt(kwargs):
         docs = kwargs["context"]
         question = kwargs["question"]
-        
+
         context = ""
         for text in docs["texts"]:
             source = 'unknown'
@@ -166,10 +166,29 @@ if modo_api:
                 elif hasattr(text.metadata, 'source'):
                     source = text.metadata.source
             context += f"\n[{source}] {text.text}\n"
-        
+
+        # Prompt RIGOROSO: força uso EXCLUSIVO do contexto (anti-alucinação)
+        system_instruction = """Você é um assistente de pesquisa médica RIGOROSO.
+
+REGRAS CRÍTICAS:
+1. Responda APENAS com informações que estão EXPLICITAMENTE no contexto fornecido abaixo
+2. Se a informação NÃO estiver no contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
+3. NUNCA use conhecimento geral ou externo
+4. Cite EXATAMENTE como está escrito no documento
+5. Se houver listas, tabelas ou critérios, reproduza-os FIELMENTE
+6. Mantenha formatação original (bullets, números, etc)
+
+CONTEXTO DOS DOCUMENTOS:
+{context}
+
+PERGUNTA DO USUÁRIO:
+{question}
+
+RESPOSTA (baseada SOMENTE no contexto acima):"""
+
         prompt_content = [{
             "type": "text",
-            "text": f"Answer based on context:\n{context}\n\nQuestion: {question}"
+            "text": system_instruction.format(context=context, question=question)
         }]
         
         for image in docs["images"]:
@@ -801,7 +820,7 @@ else:
     def build_prompt(kwargs):
         docs = kwargs["context"]
         question = kwargs["question"]
-        
+
         context = ""
         for text in docs["texts"]:
             source = 'unknown'
@@ -811,18 +830,37 @@ else:
                 elif hasattr(text.metadata, 'source'):
                     source = text.metadata.source
             context += f"\n[{source}] {text.text}\n"
-        
+
+        # Prompt RIGOROSO: força uso EXCLUSIVO do contexto (anti-alucinação)
+        system_instruction = """Você é um assistente de pesquisa médica RIGOROSO.
+
+REGRAS CRÍTICAS:
+1. Responda APENAS com informações que estão EXPLICITAMENTE no contexto fornecido abaixo
+2. Se a informação NÃO estiver no contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
+3. NUNCA use conhecimento geral ou externo
+4. Cite EXATAMENTE como está escrito no documento
+5. Se houver listas, tabelas ou critérios, reproduza-os FIELMENTE
+6. Mantenha formatação original (bullets, números, etc)
+
+CONTEXTO DOS DOCUMENTOS:
+{context}
+
+PERGUNTA DO USUÁRIO:
+{question}
+
+RESPOSTA (baseada SOMENTE no contexto acima):"""
+
         prompt_content = [{
             "type": "text",
-            "text": f"Answer based on:\n{context}\n\nQuestion: {question}"
+            "text": system_instruction.format(context=context, question=question)
         }]
-        
+
         for image in docs["images"]:
             prompt_content.append({
                 "type": "image_url",
                 "image_url": {"url": f"data:image/jpeg;base64,{image}"}
             })
-        
+
         return ChatPromptTemplate.from_messages([HumanMessage(content=prompt_content)])
     
     chain = {
