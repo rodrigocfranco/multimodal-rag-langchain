@@ -12,7 +12,7 @@ load_dotenv()
 
 # Verificar API key do Cohere
 if not os.getenv("COHERE_API_KEY"):
-    print("COHERE_API_KEY não configurada no .env")
+    print("❌ COHERE_API_KEY não configurada no .env")
     print("Adicione: COHERE_API_KEY=sua_chave")
     exit(1)
 
@@ -284,8 +284,8 @@ if modo_api:
           </div>
           <div class="row">
             <div class="button-group">
-              <button type="button" id="uploadBtn">📤 Enviar e Processar</button>
-              <button type="button" id="streamBtn">📡 Enviar com acompanhamento (tempo real)</button>
+              <button type="button" id="uploadBtn">Enviar e Processar</button>
+              <button type="button" id="streamBtn">Enviar com Progresso (Tempo Real)</button>
             </div>
           </div>
         </form>
@@ -303,7 +303,7 @@ if modo_api:
         uploadBtn.addEventListener('click', async (e)=>{
           e.preventDefault();
           if (!fileInput.files || fileInput.files.length === 0) {
-            out.innerHTML = '<span class="err">Por favor, selecione um arquivo PDF primeiro</span>';
+            out.innerHTML = '<span class="err">ERRO: Por favor, selecione um arquivo PDF primeiro</span>';
             return;
           }
           await uploadPDF('/upload');
@@ -313,7 +313,7 @@ if modo_api:
         streamBtn.addEventListener('click', async (e)=>{
           e.preventDefault();
           if (!fileInput.files || fileInput.files.length === 0) {
-            out.innerHTML = '<span class="err">Por favor, selecione um arquivo PDF primeiro</span>';
+            out.innerHTML = '<span class="err">ERRO: Por favor, selecione um arquivo PDF primeiro</span>';
             return;
           }
           await uploadPDF('/upload-stream', true);
@@ -378,21 +378,21 @@ if modo_api:
               console.log('JSON:', j);
 
               if (res.ok) {
-                out.innerHTML = '<span class="ok"> ' + (j.message || 'Processado com sucesso!') + '</span>';
+                out.innerHTML = '<span class="ok">SUCESSO: ' + (j.message || 'Processado com sucesso!') + '</span>';
                 form.reset();
               } else {
-                out.innerHTML = '<span class="err"> ' + (j.error || 'Falha') + '</span>';
+                out.innerHTML = '<span class="err">ERRO: ' + (j.error || 'Falha') + '</span>';
               }
             } catch (err) {
               console.error('Erro no upload:', err);
-              out.innerHTML = '<span class="err"> Erro: ' + err.message + '</span>';
+              out.innerHTML = '<span class="err">ERRO: ' + err.message + '</span>';
             }
           }
-          
+
           uploadBtn.disabled = false;
           streamBtn.disabled = false;
-          uploadBtn.textContent = '📤 Enviar e Processar';
-          streamBtn.textContent = '📡 Enviar com acompanhamento (tempo real)';
+          uploadBtn.textContent = 'Enviar e Processar';
+          streamBtn.textContent = 'Enviar com Progresso (Tempo Real)';
         }
       </script>
     </body>
@@ -445,22 +445,22 @@ if modo_api:
           if(!question) return;
           const qEl = document.createElement('div');
           qEl.className='msg-q';
-          qEl.textContent = '🧑‍💻 ' + question;
+          qEl.textContent = 'Q: ' + question;
           log.appendChild(qEl);
           q.value='';
           const aEl = document.createElement('div');
           aEl.className='msg-a';
-          aEl.textContent = '⏳ Buscando...';
+          aEl.textContent = 'Buscando...';
           log.appendChild(aEl);
           try{
             const res = await fetch('/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});
             const j = await res.json();
             if(res.ok){
-              aEl.innerHTML = '🤖 ' + (j.answer||'(sem resposta)') + (j.sources && j.sources.length ? '<div class="muted">📄 Fontes: ' + j.sources.join(', ') + '</div>' : '');
+              aEl.innerHTML = 'A: ' + (j.answer||'(sem resposta)') + (j.sources && j.sources.length ? '<div class="muted">Fontes: ' + j.sources.join(', ') + '</div>' : '');
             } else {
-              aEl.innerHTML = '❌ ' + (j.error||'Falha');
+              aEl.innerHTML = 'ERRO: ' + (j.error||'Falha');
             }
-          }catch(err){ aEl.textContent = '❌ ' + err.message; }
+          }catch(err){ aEl.textContent = 'ERRO: ' + err.message; }
           window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
         }
         go.addEventListener('click', ask);
@@ -541,14 +541,14 @@ if modo_api:
                 
                 # Aguardar processo terminar
                 proc.wait()
-                
+
                 if proc.returncode == 0:
-                    yield f"data: ✅ PDF processado com sucesso!\n\n"
+                    yield f"data: PDF processado com sucesso!\n\n"
                 else:
-                    yield f"data: ❌ Erro no processamento (código {proc.returncode})\n\n"
-                    
+                    yield f"data: Erro no processamento (codigo {proc.returncode})\n\n"
+
             except Exception as e:
-                yield f"data: ❌ Erro: {str(e)}\n\n"
+                yield f"data: Erro: {str(e)}\n\n"
 
         return Response(generate(), mimetype='text/plain')
 
@@ -775,13 +775,13 @@ else:
             question = input("🤔 Pergunta: ").strip()
             
             if not question or question.lower() in ['sair', 'exit', 'quit']:
-                print("👋 Até logo!")
+                print("Ate logo!")
                 break
             
-            print("⏳ Buscando com reranking...")
+            print("Buscando com reranking...")
             response = chain.invoke(question)
-            
-            print(f"\n🤖 {response['response']}\n")
+
+            print(f"\nResposta: {response['response']}\n")
             
             sources = set()
             for text in response['context']['texts']:
@@ -801,7 +801,7 @@ else:
             print("-" * 60 + "\n")
             
         except KeyboardInterrupt:
-            print("\n👋 Até logo!")
+            print("\nAte logo!")
             break
         except Exception as e:
             print(f"❌ Erro: {str(e)[:100]}\n")
