@@ -403,7 +403,13 @@ if modo_api:
     def ui():
         try:
             with open('ui_upload.html', 'r', encoding='utf-8') as f:
-                return f.read()
+                html = f.read()
+                # Cache-busting: forçar browser a não usar cache
+                response = app.make_response(html)
+                response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                response.headers['Pragma'] = 'no-cache'
+                response.headers['Expires'] = '0'
+                return response
         except FileNotFoundError:
             return render_template_string(UPLOAD_HTML)
 
