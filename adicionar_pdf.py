@@ -90,23 +90,35 @@ for chunk in chunks:
                     if "Table" in str(type(orig_el).__name__) and orig_el not in tables:
                         tables.append(orig_el)
 
-# Extrair imagens
+# Extrair imagens (com deduplicação)
 def get_images(chunks):
+    seen_hashes = set()
     images = []
+
     for chunk in chunks:
+        # Imagens diretas
         if "Image" in str(type(chunk).__name__):
             if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'image_base64'):
                 img = chunk.metadata.image_base64
                 if img and len(img) > 100:
-                    images.append(img)
-        
+                    # Usar hash para deduplicar
+                    img_hash = hash(img[:1000])  # Hash dos primeiros 1000 chars
+                    if img_hash not in seen_hashes:
+                        seen_hashes.add(img_hash)
+                        images.append(img)
+
+        # Imagens dentro de elementos compostos
         elif hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'orig_elements'):
             if chunk.metadata.orig_elements:
                 for el in chunk.metadata.orig_elements:
                     if "Image" in str(type(el).__name__) and hasattr(el.metadata, 'image_base64'):
                         img = el.metadata.image_base64
                         if img and len(img) > 100:
-                            images.append(img)
+                            # Usar hash para deduplicar
+                            img_hash = hash(img[:1000])
+                            if img_hash not in seen_hashes:
+                                seen_hashes.add(img_hash)
+                                images.append(img)
     return images
 
 images = get_images(chunks)
