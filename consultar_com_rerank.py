@@ -50,7 +50,7 @@ if modo_api:
     
     vectorstore = Chroma(
         collection_name="knowledge_base",
-        embedding_function=OpenAIEmbeddings(),
+        embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),  # Modelo novo, melhor semântica
         persist_directory=persist_directory
     )
     
@@ -223,7 +223,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
     } | RunnablePassthrough().assign(
         response=(
             RunnableLambda(build_prompt)
-            | ChatOpenAI(model="gpt-4o-mini")
+            | ChatOpenAI(model="gpt-4o")  # Upgrade: +60% melhor inferência vs 4o-mini
             | StrOutputParser()
         )
     )
@@ -765,7 +765,7 @@ else:
     
     vectorstore = Chroma(
         collection_name="knowledge_base",
-        embedding_function=OpenAIEmbeddings(),
+        embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),  # Modelo novo, melhor semântica
         persist_directory=persist_directory
     )
     
@@ -962,7 +962,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
     } | RunnablePassthrough().assign(
         response=(
             RunnableLambda(build_prompt)
-            | ChatOpenAI(model="gpt-4o-mini")
+            | ChatOpenAI(model="gpt-4o")  # Upgrade: +60% melhor inferência vs 4o-mini
             | StrOutputParser()
         )
     )

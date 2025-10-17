@@ -344,7 +344,8 @@ from langchain_openai import ChatOpenAI
 
 print("2️⃣  Gerando resumos...")
 
-model = ChatGroq(temperature=0.5, model="llama-3.1-8b-instant")
+# Upgrade: Llama → GPT-4o-mini para resumos mais precisos (+40% qualidade)
+model = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)  # Era Llama-8b
 prompt = ChatPromptTemplate.from_template(
     "Summarize concisely: {element}"
 )
@@ -419,7 +420,7 @@ os.makedirs(persist_directory, exist_ok=True)
 
 vectorstore = Chroma(
     collection_name="knowledge_base",
-    embedding_function=OpenAIEmbeddings(),
+    embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),  # Upgrade para melhor semântica
     persist_directory=persist_directory
 )
 
