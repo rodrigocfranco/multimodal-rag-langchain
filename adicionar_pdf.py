@@ -376,32 +376,14 @@ if tables:
             table_summaries.append(content[:500])
     print(f"   ✓ {len(table_summaries)} tabelas")
 
-# Imagens
+# Imagens - TEMPORARIAMENTE DESABILITADO para evitar timeout/memória
 image_summaries = []
 if images:
-    import base64
-    
-    prompt_img = ChatPromptTemplate.from_messages([
-        ("user", [
-            {"type": "text", "text": "Describe this image:"},
-            {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,{image}"}},
-        ])
-    ])
-    chain_img = prompt_img | ChatOpenAI(model="gpt-4o-mini") | StrOutputParser()
-    
+    # Skip image processing (causes timeout in Railway)
+    # TODO: Re-enable after optimizing or upgrading Railway tier
     for i, img in enumerate(images):
-        try:
-            size_kb = len(img) / 1024
-            if 1 < size_kb < 20000:
-                base64.b64decode(img[:100])
-                image_summaries.append(chain_img.invoke(img))
-                print(f"   Imagens: {i+1}/{len(images)}", end="\r")
-                time.sleep(0.8)
-            else:
-                image_summaries.append(f"Imagem {i+1}")
-        except:
-            image_summaries.append(f"Imagem {i+1}")
-    print(f"   ✓ {len(image_summaries)} imagens\n")
+        image_summaries.append(f"Imagem médica {i+1} (processamento desabilitado)")
+    print(f"   ⚠️  {len(images)} imagens ignoradas (processamento desabilitado)\n")
 
 # ===========================================================================
 # ADICIONAR AO KNOWLEDGE BASE
