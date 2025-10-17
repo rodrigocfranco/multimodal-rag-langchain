@@ -47,7 +47,7 @@ if modo_api:
     import pickle
     
     # Railway Volume
-    persist_directory = os.getenv("PERSIST_DIR", "./knowledge_base_vol")
+    persist_directory = os.getenv("PERSIST_DIR", "./knowledge_base")
 
     vectorstore = Chroma(
         collection_name="knowledge_base",
@@ -738,7 +738,7 @@ else:
     # MODO TERMINAL
     # ========================================================================
     # Railway Volume
-    persist_directory = os.getenv("PERSIST_DIR", "./knowledge_base_vol")
+    persist_directory = os.getenv("PERSIST_DIR", "./knowledge_base")
 
     if not os.path.exists(persist_directory):
         print("❌ Knowledge base vazio!")

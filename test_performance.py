@@ -46,7 +46,7 @@ import pickle
 
 vectorstore = Chroma(
     collection_name="knowledge_base",
-    embedding_function=OpenAIEmbeddings(),
+    embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),
     persist_directory=persist_directory
 )
 

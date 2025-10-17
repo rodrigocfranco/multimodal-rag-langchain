@@ -1,5 +1,38 @@
 # Guia Rápido - Como Usar o Sistema
 
+---
+
+## 🧪 **NOVO: Teste de Stress Automatizado**
+
+### Como testar o sistema após melhorias de inferência
+
+**Depois de implementar as melhorias do prompt, teste se funcionou:**
+
+```bash
+# 1. Iniciar servidor (Terminal 1)
+python consultar_com_rerank.py --api
+
+# 2. Executar testes automatizados (Terminal 2)
+python test_stress_rag.py
+
+# Opções disponíveis:
+#   1. Smoke Test (10 perguntas críticas - 5 min) ← RECOMENDADO PRIMEIRO
+#   2. Teste Completo (48 perguntas - 30 min)
+#   3. Perguntas Originais (6 perguntas que falhavam)
+```
+
+**O que o teste faz:**
+- ✅ Testa 48 perguntas categorizadas (básicas, negações, relações, etc.)
+- ✅ Detecta alucinações automaticamente
+- ✅ Gera relatório JSON com resultados
+- ✅ Mostra taxa de sucesso por categoria
+
+**Arquivo de perguntas detalhadas:** `PERGUNTAS_TESTE_STRESS.md`
+
+**Documentação das melhorias:** `SOLUCOES_IMPLEMENTADAS.md`
+
+---
+
 ## 🚀 Início Rápido
 
 ### 1️⃣ Iniciar a API

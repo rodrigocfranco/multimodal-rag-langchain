@@ -12,8 +12,8 @@
     "restartPolicyMaxRetries": 10,
     "volumeMounts": [
       {
-        "mountPath": "/app/knowledge_base_vol",
-        "name": "knowledge_base_vol"
+        "mountPath": "/app/knowledge_base",
+        "name": "knowledge_base"
       }
     ]
   }
