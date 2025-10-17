@@ -64,7 +64,7 @@ if modo_api:
         vectorstore=vectorstore,
         docstore=store,
         id_key="doc_id",
-        search_kwargs={"k": 25}  # ✅ OTIMIZADO: Aumentado para 25 para melhor cobertura
+        search_kwargs={"k": 30}  # ✅ OTIMIZADO: Aumentado para 30 para capturar info dispersa
     )
 
     # Wrapper para converter objetos Unstructured em Documents
@@ -107,7 +107,7 @@ if modo_api:
     # 🔥 RERANKER COHERE
     compressor = CohereRerank(
         model="rerank-multilingual-v3.0",  # Suporta português
-        top_n=10  # ✅ OTIMIZADO: Aumentado de 5→8→10 para perguntas complexas/abstratas
+        top_n=12  # ✅ OTIMIZADO: Aumentado para 12 para perguntas com info dispersa
     )
     
     # Retriever com reranking (agora recebe Documents)
@@ -182,8 +182,19 @@ INFERÊNCIAS PERMITIDAS (apenas quando necessário):
 7. Se a pergunta pede "quando NÃO fazer X" e o contexto diz "fazer Y em situação Z", você PODE inferir logicamente, citando o trecho original
 8. Se a pergunta usa negação ("NÃO descarta", "NÃO é recomendado"), procure informações complementares no contexto que respondam indiretamente
 
+CORREÇÃO DE PREMISSAS INCORRETAS:
+9. Se a pergunta contém PREMISSA FALSA ou INCORRETA (ex: "dose em TFG<15" quando medicamento é contraindicado), você DEVE CORRIGIR a premissa citando o trecho correto
+10. Exemplos de correção:
+   - Pergunta: "Qual dose de X em TFG<15?" quando X é contraindicado
+     Resposta: "X é CONTRAINDICADO quando TFG <30. Portanto, NÃO há dose recomendada. [cite fonte]"
+   - Pergunta: "HbA1c <5% é o alvo ideal?"
+     Resposta: "NÃO. O alvo recomendado é HbA1c <7%. HbA1c muito baixo aumenta risco de hipoglicemia. [cite fonte]"
+
+INTERPRETAÇÃO DE LINGUAGEM COLOQUIAL:
+11. Interprete termos coloquiais: "açúcar na hemoglobina"=HbA1c, "problema no rim"=TFG reduzida, "gordo"=obesidade, "comprimido"=antidiabético oral
+
 REGRA FINAL:
-9. Se após tentar conexões lógicas a informação AINDA não puder ser inferida do contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
+12. Se após tentar conexões lógicas e correções a informação AINDA não puder ser inferida do contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
 
 CONTEXTO DOS DOCUMENTOS:
 {context}
@@ -768,7 +779,7 @@ else:
         vectorstore=vectorstore,
         docstore=store,
         id_key="doc_id",
-        search_kwargs={"k": 25}  # ✅ OTIMIZADO: Aumentado para 25 para melhor cobertura
+        search_kwargs={"k": 30}  # ✅ OTIMIZADO: Aumentado para 30 para capturar info dispersa
     )
 
     # Wrapper para converter objetos Unstructured em Documents
@@ -910,8 +921,19 @@ INFERÊNCIAS PERMITIDAS (apenas quando necessário):
 7. Se a pergunta pede "quando NÃO fazer X" e o contexto diz "fazer Y em situação Z", você PODE inferir logicamente, citando o trecho original
 8. Se a pergunta usa negação ("NÃO descarta", "NÃO é recomendado"), procure informações complementares no contexto que respondam indiretamente
 
+CORREÇÃO DE PREMISSAS INCORRETAS:
+9. Se a pergunta contém PREMISSA FALSA ou INCORRETA (ex: "dose em TFG<15" quando medicamento é contraindicado), você DEVE CORRIGIR a premissa citando o trecho correto
+10. Exemplos de correção:
+   - Pergunta: "Qual dose de X em TFG<15?" quando X é contraindicado
+     Resposta: "X é CONTRAINDICADO quando TFG <30. Portanto, NÃO há dose recomendada. [cite fonte]"
+   - Pergunta: "HbA1c <5% é o alvo ideal?"
+     Resposta: "NÃO. O alvo recomendado é HbA1c <7%. HbA1c muito baixo aumenta risco de hipoglicemia. [cite fonte]"
+
+INTERPRETAÇÃO DE LINGUAGEM COLOQUIAL:
+11. Interprete termos coloquiais: "açúcar na hemoglobina"=HbA1c, "problema no rim"=TFG reduzida, "gordo"=obesidade, "comprimido"=antidiabético oral
+
 REGRA FINAL:
-9. Se após tentar conexões lógicas a informação AINDA não puder ser inferida do contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
+12. Se após tentar conexões lógicas e correções a informação AINDA não puder ser inferida do contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
 
 CONTEXTO DOS DOCUMENTOS:
 {context}
