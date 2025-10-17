@@ -46,8 +46,9 @@ if modo_api:
     from base64 import b64decode
     import pickle
     
-    persist_directory = "./knowledge_base"
-    
+    # Railway Volume
+    persist_directory = os.getenv("PERSIST_DIR", "./knowledge_base_vol")
+
     vectorstore = Chroma(
         collection_name="knowledge_base",
         embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),  # Modelo novo, melhor semântica
@@ -736,8 +737,9 @@ else:
     # ========================================================================
     # MODO TERMINAL
     # ========================================================================
-    persist_directory = "./knowledge_base"
-    
+    # Railway Volume
+    persist_directory = os.getenv("PERSIST_DIR", "./knowledge_base_vol")
+
     if not os.path.exists(persist_directory):
         print("❌ Knowledge base vazio!")
         print("Primeiro: python adicionar_pdf.py arquivo.pdf")

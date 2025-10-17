@@ -36,8 +36,8 @@ else:
 print(f"📄 Processando: {pdf_filename}")
 print("⏳ Aguarde 5-10 minutos...\n")
 
-# Vectorstore unificado
-persist_directory = "./knowledge_base"
+# Vectorstore unificado - Railway Volume
+persist_directory = os.getenv("PERSIST_DIR", "./knowledge_base_vol")
 
 # ===========================================================================
 # GERAR PDF_ID E VERIFICAR DUPLICATA

@@ -34,7 +34,7 @@ def generate_pdf_id(file_path: str) -> str:
     return sha256_hash.hexdigest()
 
 
-def get_all_documents(persist_directory: str = "./knowledge_base") -> Dict:
+def get_all_documents(persist_directory: str = "./knowledge_base_vol") -> Dict:
     """
     Retorna lista de todos documentos processados
 
@@ -71,7 +71,7 @@ def get_all_documents(persist_directory: str = "./knowledge_base") -> Dict:
     return {"documents": documents, "total": len(documents)}
 
 
-def get_document_by_id(pdf_id: str, persist_directory: str = "./knowledge_base") -> Optional[Dict]:
+def get_document_by_id(pdf_id: str, persist_directory: str = "./knowledge_base_vol") -> Optional[Dict]:
     """
     Retorna informações detalhadas de um documento
 
@@ -93,7 +93,7 @@ def get_document_by_id(pdf_id: str, persist_directory: str = "./knowledge_base")
     return metadata.get('documents', {}).get(pdf_id)
 
 
-def delete_document(pdf_id: str, persist_directory: str = "./knowledge_base") -> Dict:
+def delete_document(pdf_id: str, persist_directory: str = "./knowledge_base_vol") -> Dict:
     """
     Remove TODOS os chunks/embeddings de um documento
 
@@ -189,7 +189,7 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge_base") ->
         }
 
 
-def check_duplicate(file_path: str, persist_directory: str = "./knowledge_base") -> Optional[Dict]:
+def check_duplicate(file_path: str, persist_directory: str = "./knowledge_base_vol") -> Optional[Dict]:
     """
     Verifica se um PDF já foi processado (por hash)
 
@@ -204,7 +204,7 @@ def check_duplicate(file_path: str, persist_directory: str = "./knowledge_base")
     return get_document_by_id(pdf_id, persist_directory)
 
 
-def get_global_stats(persist_directory: str = "./knowledge_base") -> Dict:
+def get_global_stats(persist_directory: str = "./knowledge_base_vol") -> Dict:
     """
     Retorna estatísticas globais do knowledge base
 
