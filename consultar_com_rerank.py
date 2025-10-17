@@ -64,7 +64,7 @@ if modo_api:
         vectorstore=vectorstore,
         docstore=store,
         id_key="doc_id",
-        search_kwargs={"k": 20}  # ✅ OTIMIZADO: Sobre-recupera para compensar ChromaDB sem indexação
+        search_kwargs={"k": 25}  # ✅ OTIMIZADO: Aumentado para 25 para melhor cobertura
     )
 
     # Wrapper para converter objetos Unstructured em Documents
@@ -107,7 +107,7 @@ if modo_api:
     # 🔥 RERANKER COHERE
     compressor = CohereRerank(
         model="rerank-multilingual-v3.0",  # Suporta português
-        top_n=5  # Retornar top 5 após rerank
+        top_n=10  # ✅ OTIMIZADO: Aumentado de 5→8→10 para perguntas complexas/abstratas
     )
     
     # Retriever com reranking (agora recebe Documents)
@@ -167,16 +167,23 @@ if modo_api:
                     source = text.metadata.source
             context += f"\n[{source}] {text.text}\n"
 
-        # Prompt RIGOROSO: força uso EXCLUSIVO do contexto (anti-alucinação)
+        # Prompt RIGOROSO com INFERÊNCIA MODERADA: permite conexões lógicas entre chunks
         system_instruction = """Você é um assistente de pesquisa médica RIGOROSO.
 
 REGRAS CRÍTICAS:
-1. Responda APENAS com informações que estão EXPLICITAMENTE no contexto fornecido abaixo
-2. Se a informação NÃO estiver no contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
-3. NUNCA use conhecimento geral ou externo
-4. Cite EXATAMENTE como está escrito no documento
-5. Se houver listas, tabelas ou critérios, reproduza-os FIELMENTE
-6. Mantenha formatação original (bullets, números, etc)
+1. Responda APENAS com informações que estão no contexto fornecido abaixo
+2. NUNCA use conhecimento geral ou externo aos documentos
+3. Cite EXATAMENTE como está escrito no documento
+4. Se houver listas, tabelas ou critérios, reproduza-os FIELMENTE
+5. Mantenha formatação original (bullets, números, etc)
+
+INFERÊNCIAS PERMITIDAS (apenas quando necessário):
+6. Se a pergunta pede "relação entre X e Y", você PODE conectar informações de DIFERENTES trechos do contexto, citando AMBOS
+7. Se a pergunta pede "quando NÃO fazer X" e o contexto diz "fazer Y em situação Z", você PODE inferir logicamente, citando o trecho original
+8. Se a pergunta usa negação ("NÃO descarta", "NÃO é recomendado"), procure informações complementares no contexto que respondam indiretamente
+
+REGRA FINAL:
+9. Se após tentar conexões lógicas a informação AINDA não puder ser inferida do contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
 
 CONTEXTO DOS DOCUMENTOS:
 {context}
@@ -184,7 +191,7 @@ CONTEXTO DOS DOCUMENTOS:
 PERGUNTA DO USUÁRIO:
 {question}
 
-RESPOSTA (baseada SOMENTE no contexto acima):"""
+RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documentadas quando necessário):"""
 
         prompt_content = [{
             "type": "text",
@@ -761,7 +768,7 @@ else:
         vectorstore=vectorstore,
         docstore=store,
         id_key="doc_id",
-        search_kwargs={"k": 20}  # ✅ OTIMIZADO: Sobre-recupera para compensar ChromaDB sem indexação
+        search_kwargs={"k": 25}  # ✅ OTIMIZADO: Aumentado para 25 para melhor cobertura
     )
 
     # Wrapper para converter objetos Unstructured em Documents
@@ -805,7 +812,7 @@ else:
     print("🔥 Inicializando Cohere Reranker...")
     compressor = CohereRerank(
         model="rerank-multilingual-v3.0",  # Suporta português!
-        top_n=5  # Top 5 após reranking
+        top_n=8  # ✅ OTIMIZADO: Aumentado de 5→8 para perguntas complexas/abstratas
     )
     
     # Retriever com reranking (agora recebe Documents)
@@ -888,16 +895,23 @@ else:
                     source = text.metadata.source
             context += f"\n[{source}] {text.text}\n"
 
-        # Prompt RIGOROSO: força uso EXCLUSIVO do contexto (anti-alucinação)
+        # Prompt RIGOROSO com INFERÊNCIA MODERADA: permite conexões lógicas entre chunks
         system_instruction = """Você é um assistente de pesquisa médica RIGOROSO.
 
 REGRAS CRÍTICAS:
-1. Responda APENAS com informações que estão EXPLICITAMENTE no contexto fornecido abaixo
-2. Se a informação NÃO estiver no contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
-3. NUNCA use conhecimento geral ou externo
-4. Cite EXATAMENTE como está escrito no documento
-5. Se houver listas, tabelas ou critérios, reproduza-os FIELMENTE
-6. Mantenha formatação original (bullets, números, etc)
+1. Responda APENAS com informações que estão no contexto fornecido abaixo
+2. NUNCA use conhecimento geral ou externo aos documentos
+3. Cite EXATAMENTE como está escrito no documento
+4. Se houver listas, tabelas ou critérios, reproduza-os FIELMENTE
+5. Mantenha formatação original (bullets, números, etc)
+
+INFERÊNCIAS PERMITIDAS (apenas quando necessário):
+6. Se a pergunta pede "relação entre X e Y", você PODE conectar informações de DIFERENTES trechos do contexto, citando AMBOS
+7. Se a pergunta pede "quando NÃO fazer X" e o contexto diz "fazer Y em situação Z", você PODE inferir logicamente, citando o trecho original
+8. Se a pergunta usa negação ("NÃO descarta", "NÃO é recomendado"), procure informações complementares no contexto que respondam indiretamente
+
+REGRA FINAL:
+9. Se após tentar conexões lógicas a informação AINDA não puder ser inferida do contexto, responda: "A informação solicitada não está presente nos documentos fornecidos"
 
 CONTEXTO DOS DOCUMENTOS:
 {context}
@@ -905,7 +919,7 @@ CONTEXTO DOS DOCUMENTOS:
 PERGUNTA DO USUÁRIO:
 {question}
 
-RESPOSTA (baseada SOMENTE no contexto acima):"""
+RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documentadas quando necessário):"""
 
         prompt_content = [{
             "type": "text",
