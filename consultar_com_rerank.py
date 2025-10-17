@@ -210,16 +210,63 @@ RESPOSTA (baseada SOMENTE no contexto acima):"""
         )
     )
     
+    @app.route('/debug-retrieval', methods=['POST'])
+    def debug_retrieval():
+        """DEBUG: Ver o que o retrieval está retornando"""
+        data = request.get_json()
+        if not data or 'question' not in data:
+            return jsonify({"error": "Campo 'question' obrigatório"}), 400
+
+        try:
+            question = data['question']
+
+            # Buscar SEM rerank (raw retrieval)
+            raw_docs = base_retriever.invoke(question)
+
+            # Buscar COM rerank
+            reranked_docs = retriever.invoke(question)
+
+            return jsonify({
+                "query": question,
+                "raw_retrieval": {
+                    "count": len(raw_docs),
+                    "docs": [
+                        {
+                            "content_preview": str(doc)[:200] if hasattr(doc, '__str__') else "N/A",
+                            "type": type(doc).__name__,
+                            "has_text": hasattr(doc, 'text'),
+                            "has_page_content": hasattr(doc, 'page_content')
+                        }
+                        for doc in raw_docs[:5]  # Primeiros 5
+                    ]
+                },
+                "reranked": {
+                    "count": len(reranked_docs),
+                    "docs": [
+                        {
+                            "content_preview": str(doc.page_content)[:200] if hasattr(doc, 'page_content') else str(doc)[:200],
+                            "type": type(doc).__name__
+                        }
+                        for doc in reranked_docs[:5]
+                    ]
+                }
+            })
+        except Exception as e:
+            import traceback
+            return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
     @app.route('/query', methods=['POST'])
     def query():
         data = request.get_json()
         if not data or 'question' not in data:
             return jsonify({"error": "Campo 'question' obrigatório"}), 400
-        
+
         try:
             response = chain.invoke(data['question'])
-            
+
             sources = set()
+            num_chunks = len(response['context']['texts'])
+
             for text in response['context']['texts']:
                 if hasattr(text, 'metadata'):
                     if isinstance(text.metadata, dict):
@@ -229,10 +276,11 @@ RESPOSTA (baseada SOMENTE no contexto acima):"""
                     else:
                         source = 'unknown'
                     sources.add(source)
-            
+
             return jsonify({
                 "answer": response['response'],
                 "sources": list(sources),
+                "chunks_used": num_chunks,
                 "reranked": True
             })
         except Exception as e:
