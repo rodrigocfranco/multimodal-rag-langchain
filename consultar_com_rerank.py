@@ -547,6 +547,15 @@ RESPOSTA (baseada SOMENTE no contexto acima):"""
     def chat():
         return render_template_string(CHAT_HTML)
 
+    @app.route('/debug', methods=['GET'])
+    def debug():
+        """UI de debug do retrieval"""
+        try:
+            with open('ui_debug.html', 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            return "<h1>UI de debug não encontrada</h1>", 404
+
     # =============== Document Management ===============
     from document_manager import get_all_documents, get_document_by_id, delete_document as delete_doc_func, get_global_stats
 

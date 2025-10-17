@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debug - Retrieval Analysis</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 20px;
+      color: #333;
+      line-height: 1.6;
+    }
+    h2 { margin-bottom: 20px; color: #1a1a1a; }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 24px;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .form-group { margin-bottom: 16px; }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #555;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      background: #0066cc;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover:not(:disabled) { background: #0052a3; }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .results {
+      margin-top: 20px;
+      display: none;
+    }
+    .results.show { display: block; }
+    .section {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .section h3 {
+      margin-bottom: 12px;
+      color: #495057;
+      font-size: 16px;
+    }
+    .stat {
+      display: inline-block;
+      background: #fff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-right: 12px;
+      margin-bottom: 8px;
+      border: 1px solid #ddd;
+    }
+    .stat strong {
+      color: #0066cc;
+      font-size: 20px;
+    }
+    .doc-preview {
+      background: #fff;
+      border: 1px solid #e1e4e8;
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    .doc-preview .type {
+      color: #6a737d;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      padding: 12px;
+      border-radius: 4px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      padding: 12px;
+      border-radius: 4px;
+    }
+    .warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+      padding: 12px;
+      border-radius: 4px;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+    pre {
+      background: #f6f8fa;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h2>🔍 Debug - Análise de Retrieval</h2>
+
+  <div class="card">
+    <p style="margin-bottom: 16px; color: #666;">
+      Esta ferramenta mostra exatamente o que acontece quando você faz uma pergunta:
+    </p>
+    <ul style="margin-left: 20px; margin-bottom: 20px; color: #666;">
+      <li>Quantos documentos são encontrados na busca inicial</li>
+      <li>Quantos passam pelo reranking</li>
+      <li>Preview do conteúdo retornado</li>
+    </ul>
+
+    <div class="form-group">
+      <label for="question">Digite sua pergunta:</label>
+      <input
+        type="text"
+        id="question"
+        placeholder="Ex: quais os critérios de muito alto risco cardiovascular pela diretriz brasileira de diabetes 2025"
+        value="quais os critérios de muito alto risco cardiovascular pela diretriz brasileira de diabetes 2025"
+      >
+    </div>
+
+    <button id="debugBtn">Analisar Retrieval</button>
+  </div>
+
+  <div id="results" class="results">
+    <!-- Results will be inserted here -->
+  </div>
+
+  <script>
+    const questionInput = document.getElementById('question');
+    const debugBtn = document.getElementById('debugBtn');
+    const resultsDiv = document.getElementById('results');
+
+    debugBtn.addEventListener('click', async () => {
+      const question = questionInput.value.trim();
+      if (!question) {
+        alert('Por favor, digite uma pergunta');
+        return;
+      }
+
+      debugBtn.disabled = true;
+      debugBtn.textContent = 'Analisando...';
+      resultsDiv.className = 'results show';
+      resultsDiv.innerHTML = '<div class="loading">Analisando retrieval... aguarde...</div>';
+
+      try {
+        const response = await fetch('/debug-retrieval', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erro desconhecido');
+        }
+
+        displayResults(data);
+      } catch (error) {
+        resultsDiv.innerHTML = `
+          <div class="error">
+            <strong>Erro ao analisar:</strong><br>
+            ${error.message}
+          </div>
+        `;
+      } finally {
+        debugBtn.disabled = false;
+        debugBtn.textContent = 'Analisar Retrieval';
+      }
+    });
+
+    function displayResults(data) {
+      const rawCount = data.raw_retrieval?.count || 0;
+      const rerankedCount = data.reranked?.count || 0;
+
+      let diagnosis = '';
+      let diagnosisClass = '';
+
+      if (rawCount === 0) {
+        diagnosis = '❌ PROBLEMA CRÍTICO: Busca inicial não retornou NENHUM documento! Os embeddings não estão funcionando ou o ChromaDB está vazio.';
+        diagnosisClass = 'error';
+      } else if (rerankedCount === 0) {
+        diagnosis = '⚠️ PROBLEMA: Busca encontrou ' + rawCount + ' documentos, mas o Cohere Reranker FILTROU TODOS! Os documentos retornados não são relevantes para a query.';
+        diagnosisClass = 'warning';
+      } else {
+        diagnosis = '✅ SUCESSO: Retrieval funcionando! ' + rawCount + ' documentos encontrados, ' + rerankedCount + ' passaram pelo reranking.';
+        diagnosisClass = 'success';
+      }
+
+      let html = `
+        <div class="${diagnosisClass}" style="margin-bottom: 20px;">
+          <strong>Diagnóstico:</strong><br>
+          ${diagnosis}
+        </div>
+
+        <div class="section">
+          <h3>📊 Estatísticas</h3>
+          <div class="stat">
+            <div>Busca Inicial</div>
+            <strong>${rawCount}</strong>
+          </div>
+          <div class="stat">
+            <div>Após Reranking</div>
+            <strong>${rerankedCount}</strong>
+          </div>
+          <div class="stat">
+            <div>Taxa de Filtro</div>
+            <strong>${rawCount > 0 ? Math.round((1 - rerankedCount/rawCount) * 100) : 0}%</strong>
+          </div>
+        </div>
+      `;
+
+      if (rawCount > 0) {
+        html += `
+          <div class="section">
+            <h3>📄 Documentos da Busca Inicial (primeiros 5)</h3>
+        `;
+
+        data.raw_retrieval.docs.forEach((doc, idx) => {
+          html += `
+            <div class="doc-preview">
+              <div class="type">Documento ${idx + 1} | Tipo: ${doc.type}</div>
+              ${doc.content_preview}
+            </div>
+          `;
+        });
+
+        html += '</div>';
+      }
+
+      if (rerankedCount > 0) {
+        html += `
+          <div class="section">
+            <h3>⭐ Documentos Após Reranking (primeiros 5)</h3>
+        `;
+
+        data.reranked.docs.forEach((doc, idx) => {
+          html += `
+            <div class="doc-preview">
+              <div class="type">Documento ${idx + 1} | Tipo: ${doc.type}</div>
+              ${doc.content_preview}
+            </div>
+          `;
+        });
+
+        html += '</div>';
+      }
+
+      html += `
+        <div class="section">
+          <h3>🔧 JSON Completo (para debug)</h3>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        </div>
+      `;
+
+      resultsDiv.innerHTML = html;
+    }
+
+    // Auto-focus no input
+    questionInput.focus();
+  </script>
+</body>
+</html>
