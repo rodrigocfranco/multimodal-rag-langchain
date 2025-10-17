@@ -394,14 +394,16 @@ if images:
             size_kb = len(img) / 1024
             if 1 < size_kb < 20000:
                 base64.b64decode(img[:100])
+                print(f"   Imagens: {i+1}/{len(images)} ({size_kb:.1f}KB)...", end="\r")
                 image_summaries.append(chain_img.invoke(img))
-                print(f"   Imagens: {i+1}/{len(images)}", end="\r")
                 time.sleep(0.8)
             else:
+                print(f"   Imagens: {i+1}/{len(images)} (ignorada: {size_kb:.1f}KB)", end="\r")
                 image_summaries.append(f"Imagem {i+1}")
-        except:
-            image_summaries.append(f"Imagem {i+1}")
-    print(f"   ✓ {len(image_summaries)} imagens\n")
+        except Exception as e:
+            print(f"   Imagens: {i+1}/{len(images)} ERRO: {str(e)[:100]}", end="\r")
+            image_summaries.append(f"Imagem {i+1} (erro: {str(e)[:50]})")
+    print(f"   ✓ {len(image_summaries)} imagens processadas\n")
 
 # ===========================================================================
 # ADICIONAR AO KNOWLEDGE BASE
