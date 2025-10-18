@@ -308,6 +308,47 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
     @app.route('/health', methods=['GET'])
     def health():
         return jsonify({"status": "ok", "reranker": "cohere"})
+
+    @app.route('/debug-volume', methods=['GET'])
+    def debug_volume():
+        """DEBUG: Verificar se o volume tem arquivos"""
+        import os
+        try:
+            volume_info = {
+                "persist_directory": persist_directory,
+                "exists": os.path.exists(persist_directory),
+                "files": []
+            }
+
+            if os.path.exists(persist_directory):
+                files = os.listdir(persist_directory)
+                for f in files:
+                    path = os.path.join(persist_directory, f)
+                    size = os.path.getsize(path) if os.path.isfile(path) else -1
+                    volume_info["files"].append({
+                        "name": f,
+                        "size_bytes": size,
+                        "is_dir": os.path.isdir(path)
+                    })
+
+            # Verificar ChromaDB collection
+            try:
+                collection = vectorstore._collection
+                count = collection.count()
+                volume_info["chroma_count"] = count
+            except:
+                volume_info["chroma_count"] = "error"
+
+            # Verificar docstore
+            if os.path.exists(f"{persist_directory}/docstore.pkl"):
+                volume_info["docstore_exists"] = True
+                volume_info["docstore_size"] = len(store.store)
+            else:
+                volume_info["docstore_exists"] = False
+
+            return jsonify(volume_info)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
     
     @app.route('/', methods=['GET'])
     def home():
