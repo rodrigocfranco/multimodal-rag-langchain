@@ -427,15 +427,38 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
 
                 # TESTE 5: Testar chain completo (pode falhar se OpenAI estiver com problema)
                 try:
-                    test_response = chain.invoke("diabetes")
+                    # Primeiro só pegar o contexto (sem chamar OpenAI)
+                    context_step = retriever.invoke("diabetes")
+                    parsed = parse_docs(context_step)
+
+                    # Calcular tamanho do prompt que seria enviado
+                    context_text = ""
+                    for text in parsed["texts"]:
+                        context_text += f"\n[source] {text.text}\n"
+
+                    prompt_size = len(context_text)
+                    images_size = sum(len(img) for img in parsed["images"])
+
                     volume_info["chain_test"] = {
-                        "success": True,
-                        "response_length": len(test_response.get("response", "")),
-                        "has_context": "context" in test_response
+                        "context_ready": True,
+                        "prompt_size_chars": prompt_size,
+                        "images_size_bytes": images_size,
+                        "texts_count": len(parsed["texts"]),
+                        "images_count": len(parsed["images"])
                     }
+
+                    # Agora tentar chamar OpenAI (pode dar erro 500)
+                    try:
+                        test_response = chain.invoke("diabetes")
+                        volume_info["chain_test"]["openai_success"] = True
+                        volume_info["chain_test"]["response_length"] = len(test_response.get("response", ""))
+                    except Exception as openai_error:
+                        volume_info["chain_test"]["openai_success"] = False
+                        volume_info["chain_test"]["openai_error"] = str(openai_error)[:300]
+
                 except Exception as e:
                     volume_info["chain_test"] = {
-                        "error": str(e)[:200],
+                        "error": str(e)[:300],
                         "success": False
                     }
             except Exception as e:
