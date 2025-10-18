@@ -22,6 +22,9 @@ langchain-groq
 langchain-cohere
 cohere
 
+# BM25 for Hybrid Search (keyword-based retrieval)
+rank-bm25
+
 # API REST
 flask
 flask-cors
