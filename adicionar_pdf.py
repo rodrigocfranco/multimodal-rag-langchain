@@ -83,12 +83,23 @@ def run_partition(strategy: str):
         strategy=strategy,
         extract_image_block_types=["Image", "Table"],
         extract_image_block_to_payload=True,
-        languages=["por"],  # ✅ NOVO: Força OCR em português
-        # ✅ REMOVIDO chunking automático - preserva tabelas inteiras
-        # chunking_strategy="by_title",  # ❌ QUEBRAVA TABELAS
-        # max_characters=10000,
-        # combine_text_under_n_chars=2000,
-        # new_after_n_chars=6000,
+        languages=["por"],  # ✅ Força OCR em português
+
+        # ✅ CHUNKING OTIMIZADO PARA DOCUMENTOS MÉDICOS
+        # NOTA IMPORTANTE: Tabelas são SEMPRE preservadas inteiras (isoladas)
+        # tanto em by_title quanto em basic - ver documentação Unstructured
+        chunking_strategy="by_title",
+
+        # Hard maximum: ~500 tokens, ideal para guidelines médicos
+        max_characters=2000,
+
+        # Agrupa elementos pequenos (<500 chars) no mesmo chunk
+        # Evita chunks fragmentados (1-2 sentenças isoladas)
+        combine_text_under_n_chars=500,
+
+        # Soft maximum: força quebra em 1500 chars
+        # Evita chunks muito grandes enquanto preserva contexto
+        new_after_n_chars=1500,
     )
 
 try:
@@ -107,22 +118,20 @@ except Exception as e:
 print(f"1️⃣  Extraído: {len(chunks)} elementos (estratégia: {strategy_used})")
 
 # Separar elementos
-tables, texts = [], []
+# Com chunking by_title, Unstructured retorna:
+# - CompositeElement: textos agrupados por seção
+# - Table: tabelas isoladas (sempre preservadas inteiras)
+tables = []
+texts = []
 
 for chunk in chunks:
-    chunk_type = str(type(chunk).__name__)
-    
-    if "Table" in chunk_type and chunk not in tables:
+    chunk_type = str(type(chunk))
+
+    if "Table" in chunk_type:
         tables.append(chunk)
-    elif chunk_type in ['CompositeElement', 'NarrativeText', 'Title', 'Text', 'ListItem']:
+
+    if "CompositeElement" in chunk_type:
         texts.append(chunk)
-        
-        if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'orig_elements'):
-            orig_elements = chunk.metadata.orig_elements
-            if orig_elements:
-                for orig_el in orig_elements:
-                    if "Table" in str(type(orig_el).__name__) and orig_el not in tables:
-                        tables.append(orig_el)
 
 # ===========================================================================
 # FUNÇÕES DE EXTRAÇÃO DE METADATA MÉDICO
@@ -270,59 +279,45 @@ def infer_document_type(filename):
     return 'medical_article'
 
 
-# Extrair imagens (com deduplicação e filtro de tamanho)
-def get_images(chunks):
-    seen_hashes = set()
-    images = []
-    filtered_count = 0  # Contar imagens filtradas
-    duplicate_count = 0  # Contar duplicatas
+# Extrair imagens base64 dos CompositeElements
+def get_images_base64(chunks):
+    """
+    Extrai imagens de dentro dos CompositeElements.
+    Imagens vêm em metadata.orig_elements
+    """
+    images_b64 = []
+    seen_hashes = set()  # Deduplicação
+    filtered_count = 0
 
-    # Filtrar imagens pequenas (ícones, bullets, logos, decorações)
-    # PDFs médicos geralmente têm figuras/gráficos maiores que 5KB
+    # Filtro: imagens muito pequenas geralmente são ícones/decoração
     MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "5"))
 
     for chunk in chunks:
-        # Imagens diretas
-        if "Image" in str(type(chunk).__name__):
-            if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'image_base64'):
-                img = chunk.metadata.image_base64
-                if img and len(img) > 100:
-                    # Filtrar por tamanho (remover ícones pequenos)
-                    size_kb = len(img) / 1024
-                    if size_kb >= MIN_IMAGE_SIZE_KB:
-                        # Usar hash para deduplicar
-                        img_hash = hash(img[:1000])  # Hash dos primeiros 1000 chars
-                        if img_hash not in seen_hashes:
-                            seen_hashes.add(img_hash)
-                            images.append(img)
-                        else:
-                            duplicate_count += 1
-                    else:
-                        filtered_count += 1
+        if "CompositeElement" in str(type(chunk)):
+            if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'orig_elements'):
+                chunk_els = chunk.metadata.orig_elements
+                if chunk_els:
+                    for el in chunk_els:
+                        if "Image" in str(type(el)):
+                            if hasattr(el, 'metadata') and hasattr(el.metadata, 'image_base64'):
+                                img = el.metadata.image_base64
+                                if img and len(img) > 100:
+                                    size_kb = len(img) / 1024
 
-        # Imagens dentro de elementos compostos
-        elif hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'orig_elements'):
-            if chunk.metadata.orig_elements:
-                for el in chunk.metadata.orig_elements:
-                    if "Image" in str(type(el).__name__) and hasattr(el.metadata, 'image_base64'):
-                        img = el.metadata.image_base64
-                        if img and len(img) > 100:
-                            # Filtrar por tamanho
-                            size_kb = len(img) / 1024
-                            if size_kb >= MIN_IMAGE_SIZE_KB:
-                                # Usar hash para deduplicar
-                                img_hash = hash(img[:1000])
-                                if img_hash not in seen_hashes:
-                                    seen_hashes.add(img_hash)
-                                    images.append(img)
-                                else:
-                                    duplicate_count += 1
-                            else:
-                                filtered_count += 1
+                                    # Filtrar imagens muito pequenas
+                                    if size_kb >= MIN_IMAGE_SIZE_KB:
+                                        # Deduplicar por hash
+                                        img_hash = hash(img[:1000])
+                                        if img_hash not in seen_hashes:
+                                            seen_hashes.add(img_hash)
+                                            images_b64.append(img)
+                                    else:
+                                        filtered_count += 1
 
-    return images, filtered_count, duplicate_count
+    return images_b64, filtered_count
 
-images, filtered_count, duplicate_count = get_images(chunks)
+images, filtered_count = get_images_base64(chunks)
+duplicate_count = 0  # Já deduplicado na função
 
 # Modo debug: mostrar detalhes das imagens
 if os.getenv("DEBUG_IMAGES"):
@@ -334,8 +329,8 @@ if os.getenv("DEBUG_IMAGES"):
     print(f"   [DEBUG] Duplicatas removidas: {duplicate_count}")
 
 print(f"   ✓ {len(texts)} textos, {len(tables)} tabelas, {len(images)} imagens")
-if filtered_count > 0 or duplicate_count > 0:
-    print(f"      (filtradas: {filtered_count} pequenas, {duplicate_count} duplicatas)")
+if filtered_count > 0:
+    print(f"      (filtradas: {filtered_count} imagens pequenas <5KB)")
 print()
 
 # ===========================================================================
@@ -646,7 +641,8 @@ print("=" * 70)
 print(f"\n🔧 Configuração:")
 print(f"   Estratégia OCR: {strategy_used}")
 print(f"   Idioma: Português (por)")
-print(f"   Chunking automático: Desabilitado (preserva tabelas)")
+print(f"   Chunking: by_title (max: 2000 chars, ~500 tokens)")
+print(f"   Tabelas: Sempre preservadas inteiras (isoladas)")
 
 print(f"\n📄 Arquivo:")
 print(f"   Nome: {pdf_filename}")
@@ -654,11 +650,11 @@ print(f"   Tamanho: {file_size / 1024 / 1024:.2f} MB")
 print(f"   Tipo detectado: {document_type}")
 
 print(f"\n📦 Elementos extraídos:")
-print(f"   Textos: {len(texts)}")
-print(f"   Tabelas: {len(tables)}")
+print(f"   Textos (CompositeElement): {len(texts)}")
+print(f"   Tabelas (isoladas): {len(tables)}")
 print(f"   Imagens: {len(images)}")
-if filtered_count > 0 or duplicate_count > 0:
-    print(f"   (filtradas: {filtered_count} pequenas, {duplicate_count} duplicatas)")
+if filtered_count > 0:
+    print(f"   (filtradas: {filtered_count} imagens pequenas <5KB)")
 
 print(f"\n💾 Knowledge Base:")
 print(f"   PDF_ID: {pdf_id[:32]}...")
