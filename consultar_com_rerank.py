@@ -353,6 +353,21 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                     # Verificar se doc_ids batem
                     matches = [doc_id in store.store for doc_id in vectorstore_doc_ids]
                     volume_info["doc_id_matches"] = matches
+
+                # TESTE CRÍTICO: Testar base_retriever.invoke() diretamente
+                try:
+                    mv_results = base_retriever.invoke("diabetes")
+                    volume_info["base_retriever_test"] = {
+                        "count": len(mv_results),
+                        "success": len(mv_results) > 0,
+                        "first_doc_type": type(mv_results[0]).__name__ if mv_results else None,
+                        "first_doc_preview": str(mv_results[0])[:100] if mv_results else None
+                    }
+                except Exception as e:
+                    volume_info["base_retriever_test"] = {
+                        "error": str(e),
+                        "success": False
+                    }
             except Exception as e:
                 volume_info["chroma_count"] = f"error: {str(e)}"
                 volume_info["test_search_error"] = str(e)
