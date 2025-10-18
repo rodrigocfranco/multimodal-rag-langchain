@@ -368,6 +368,35 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                         "error": str(e),
                         "success": False
                     }
+
+                # TESTE 2: Testar wrapped_retriever (DocumentConverter)
+                try:
+                    wrapped_results = wrapped_retriever.invoke("diabetes")
+                    volume_info["wrapped_retriever_test"] = {
+                        "count": len(wrapped_results),
+                        "success": len(wrapped_results) > 0,
+                        "first_doc_type": type(wrapped_results[0]).__name__ if wrapped_results else None,
+                        "has_page_content": hasattr(wrapped_results[0], 'page_content') if wrapped_results else False
+                    }
+                except Exception as e:
+                    volume_info["wrapped_retriever_test"] = {
+                        "error": str(e),
+                        "success": False
+                    }
+
+                # TESTE 3: Testar retriever completo (com Cohere rerank)
+                try:
+                    reranked_results = retriever.invoke("diabetes")
+                    volume_info["reranked_retriever_test"] = {
+                        "count": len(reranked_results),
+                        "success": len(reranked_results) > 0,
+                        "first_doc_type": type(reranked_results[0]).__name__ if reranked_results else None
+                    }
+                except Exception as e:
+                    volume_info["reranked_retriever_test"] = {
+                        "error": str(e),
+                        "success": False
+                    }
             except Exception as e:
                 volume_info["chroma_count"] = f"error: {str(e)}"
                 volume_info["test_search_error"] = str(e)
