@@ -90,16 +90,16 @@ def run_partition(strategy: str):
         # tanto em by_title quanto em basic - ver documentação Unstructured
         chunking_strategy="by_title",
 
-        # Hard maximum: ~500 tokens, ideal para guidelines médicos
-        max_characters=2000,
+        # Hard maximum: ~2500 tokens - chunks grandes preservam contexto completo
+        max_characters=10000,
 
-        # Agrupa elementos pequenos (<500 chars) no mesmo chunk
-        # Evita chunks fragmentados (1-2 sentenças isoladas)
-        combine_text_under_n_chars=500,
+        # Agrupa elementos pequenos (<4000 chars) no mesmo chunk
+        # Combina múltiplos parágrafos relacionados da mesma seção
+        combine_text_under_n_chars=4000,
 
-        # Soft maximum: força quebra em 1500 chars
-        # Evita chunks muito grandes enquanto preserva contexto
-        new_after_n_chars=1500,
+        # Soft maximum: força quebra em 6000 chars (~1500 tokens)
+        # Balanceia contexto amplo com eficiência de retrieval
+        new_after_n_chars=6000,
     )
 
 try:
@@ -641,7 +641,8 @@ print("=" * 70)
 print(f"\n🔧 Configuração:")
 print(f"   Estratégia OCR: {strategy_used}")
 print(f"   Idioma: Português (por)")
-print(f"   Chunking: by_title (max: 2000 chars, ~500 tokens)")
+print(f"   Chunking: by_title (max: 10000 chars, ~2500 tokens)")
+print(f"   Combine under: 4000 chars | Soft max: 6000 chars")
 print(f"   Tabelas: Sempre preservadas inteiras (isoladas)")
 
 print(f"\n📄 Arquivo:")
