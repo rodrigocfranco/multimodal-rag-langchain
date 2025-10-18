@@ -829,6 +829,59 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         except FileNotFoundError:
             return "<h1>UI de debug retrieval não encontrada</h1>", 404
 
+    @app.route('/search-table', methods=['GET'])
+    def search_table():
+        """Buscar diretamente chunks que contenham keywords da tabela"""
+        try:
+            # Buscar por "muito alto" diretamente
+            results_muito_alto = vectorstore.similarity_search("TABELA 1 muito alto risco cardiovascular", k=10)
+
+            # Buscar por "3 fatores"
+            results_fatores = vectorstore.similarity_search("3 ou mais fatores de risco", k=10)
+
+            # Buscar por "hipercolesterolemia"
+            results_hiper = vectorstore.similarity_search("hipercolesterolemia familiar", k=10)
+
+            found_docs = []
+
+            for docs, query_type in [(results_muito_alto, "muito_alto"),
+                                      (results_fatores, "fatores"),
+                                      (results_hiper, "hipercolesterolemia")]:
+                for doc in docs:
+                    content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
+
+                    # Verificar se contém keywords da tabela
+                    keywords_found = []
+                    if "3 ou mais fatores" in content.lower() or "três ou mais fatores" in content.lower():
+                        keywords_found.append("3_fatores")
+                    if "hipercolesterolemia familiar" in content.lower():
+                        keywords_found.append("hipercolesterolemia")
+                    if "muito alto" in content.lower():
+                        keywords_found.append("muito_alto")
+                    if "tabela 1" in content.lower():
+                        keywords_found.append("tabela_1")
+
+                    found_docs.append({
+                        "query_type": query_type,
+                        "content": content[:500],
+                        "full_length": len(content),
+                        "keywords_found": keywords_found,
+                        "metadata": doc.metadata if hasattr(doc, 'metadata') else {}
+                    })
+
+            return jsonify({
+                "total_docs_found": len(found_docs),
+                "docs": found_docs,
+                "summary": {
+                    "has_3_fatores": any("3_fatores" in d["keywords_found"] for d in found_docs),
+                    "has_hipercolesterolemia": any("hipercolesterolemia" in d["keywords_found"] for d in found_docs),
+                    "has_tabela_1": any("tabela_1" in d["keywords_found"] for d in found_docs)
+                }
+            })
+        except Exception as e:
+            import traceback
+            return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
     @app.route('/debug-table-chunking', methods=['GET'])
     def debug_table_chunking():
         """Diagnosticar como a tabela de risco cardiovascular foi chunkeada"""
