@@ -117,21 +117,49 @@ except Exception as e:
 
 print(f"1️⃣  Extraído: {len(chunks)} elementos (estratégia: {strategy_used})")
 
+# DEBUG: Mostrar tipos de elementos
+element_types = {}
+for chunk in chunks:
+    chunk_type = str(type(chunk).__name__)
+    element_types[chunk_type] = element_types.get(chunk_type, 0) + 1
+
+print(f"\n   Tipos de elementos encontrados:")
+for elem_type, count in sorted(element_types.items()):
+    print(f"     {elem_type}: {count}")
+
 # Separar elementos
 # Com chunking by_title, Unstructured retorna:
 # - CompositeElement: textos agrupados por seção
 # - Table: tabelas isoladas (sempre preservadas inteiras)
+#
+# NOTA: Com parâmetros agressivos de chunking, tabelas podem vir:
+# 1. Como elementos Table de primeira classe (ideal)
+# 2. Dentro de CompositeElement.metadata.orig_elements (com chunking agressivo)
 tables = []
 texts = []
 
 for chunk in chunks:
     chunk_type = str(type(chunk))
 
+    # Tabelas diretas (primeira classe)
     if "Table" in chunk_type:
         tables.append(chunk)
 
+    # CompositeElements (textos agrupados)
     if "CompositeElement" in chunk_type:
         texts.append(chunk)
+
+        # CRITICAL: Verificar se há tabelas escondidas em orig_elements
+        # Com chunking agressivo, tabelas podem ser agrupadas aqui
+        if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'orig_elements'):
+            if chunk.metadata.orig_elements:
+                for orig_el in chunk.metadata.orig_elements:
+                    if "Table" in str(type(orig_el).__name__):
+                        # Tabela encontrada dentro de CompositeElement
+                        # Adicionar à lista de tabelas
+                        if orig_el not in tables:
+                            tables.append(orig_el)
+                            print(f"   ⚠️  Tabela encontrada em orig_elements (chunk agressivo)")
 
 # ===========================================================================
 # FUNÇÕES DE EXTRAÇÃO DE METADATA MÉDICO
