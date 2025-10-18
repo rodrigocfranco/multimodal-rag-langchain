@@ -83,24 +83,28 @@ def run_partition(strategy: str):
         strategy=strategy,
         extract_image_block_types=["Image", "Table"],
         extract_image_block_to_payload=True,
-        chunking_strategy="by_title",
-        max_characters=10000,
-        combine_text_under_n_chars=2000,
-        new_after_n_chars=6000,
+        languages=["por"],  # ✅ NOVO: Força OCR em português
+        # ✅ REMOVIDO chunking automático - preserva tabelas inteiras
+        # chunking_strategy="by_title",  # ❌ QUEBRAVA TABELAS
+        # max_characters=10000,
+        # combine_text_under_n_chars=2000,
+        # new_after_n_chars=6000,
     )
 
 try:
     # Tenta com a estratégia definida (padrão hi_res)
     chunks = run_partition(strategy_env)
+    strategy_used = strategy_env
 except Exception as e:
     # Se falhar por falta de libGL/cv2, faz fallback para 'fast'
     if "libGL.so.1" in str(e) or "cv2" in str(e) or "detectron2onnx" in str(e):
         print("⚠️  Falha em hi_res (provável falta de libGL). Usando strategy='fast'.")
         chunks = run_partition("fast")
+        strategy_used = "fast"
     else:
         raise
 
-print(f"1️⃣  Extraído: {len(chunks)} chunks")
+print(f"1️⃣  Extraído: {len(chunks)} elementos (estratégia: {strategy_used})")
 
 # Separar elementos
 tables, texts = [], []
@@ -456,8 +460,12 @@ for i, summary in enumerate(text_summaries):
     # Extrair section heading (contexto médico)
     section = extract_section_heading(texts[i])
 
+    # ✅ NOVO: Incluir texto original + resumo para melhor retrieval
+    original_text = texts[i].text if hasattr(texts[i], 'text') else str(texts[i])
+    combined_content = f"{summary}\n\n[TEXTO ORIGINAL]\n{original_text}"
+
     doc = Document(
-        page_content=summary,
+        page_content=combined_content,  # ✅ TEXTO COMPLETO + RESUMO
         metadata={
             "doc_id": doc_id,
             "pdf_id": pdf_id,  # ✅ ID do PDF
@@ -468,6 +476,7 @@ for i, summary in enumerate(text_summaries):
             "uploaded_at": uploaded_at,
             "section": section,              # ✅ NOVO: Seção do documento
             "document_type": document_type,  # ✅ NOVO: Tipo de documento
+            "summary": summary,               # ✅ NOVO: Guardar resumo separado
         }
     )
     
@@ -504,8 +513,19 @@ for i, summary in enumerate(table_summaries):
     # Extrair section heading (tabelas geralmente têm context)
     section = extract_section_heading(tables[i])
 
+    # ✅ CRÍTICO: Para tabelas, usar TEXTO COMPLETO sem resumir
+    # Resumos de tabelas perdem informação crítica (valores, critérios específicos)
+    table_text = tables[i].text if hasattr(tables[i], 'text') else str(tables[i])
+
+    # Se houver HTML da tabela, incluir também
+    table_html = ""
+    if hasattr(tables[i], 'metadata') and hasattr(tables[i].metadata, 'text_as_html'):
+        table_html = f"\n\n[HTML]\n{tables[i].metadata.text_as_html}"
+
+    combined_table_content = f"{summary}\n\n[TABELA COMPLETA]\n{table_text}{table_html}"
+
     doc = Document(
-        page_content=summary,
+        page_content=combined_table_content,  # ✅ TABELA COMPLETA + RESUMO
         metadata={
             "doc_id": doc_id,
             "pdf_id": pdf_id,  # ✅ ID do PDF
@@ -516,6 +536,7 @@ for i, summary in enumerate(table_summaries):
             "uploaded_at": uploaded_at,
             "section": section,              # ✅ NOVO: Seção do documento
             "document_type": document_type,  # ✅ NOVO: Tipo de documento
+            "summary": summary,               # ✅ NOVO: Guardar resumo separado
         }
     )
     
@@ -614,13 +635,63 @@ with open(metadata_path, 'wb') as f:
     pickle.dump(metadata, f)
 
 print(f"   ✓ Adicionado!\n")
-print("📚 Knowledge Base:")
+
+# ===========================================================================
+# RELATÓRIO DE QUALIDADE
+# ===========================================================================
+print("=" * 70)
+print("📊 RELATÓRIO DE QUALIDADE DO PROCESSAMENTO")
+print("=" * 70)
+
+print(f"\n🔧 Configuração:")
+print(f"   Estratégia OCR: {strategy_used}")
+print(f"   Idioma: Português (por)")
+print(f"   Chunking automático: Desabilitado (preserva tabelas)")
+
+print(f"\n📄 Arquivo:")
+print(f"   Nome: {pdf_filename}")
+print(f"   Tamanho: {file_size / 1024 / 1024:.2f} MB")
+print(f"   Tipo detectado: {document_type}")
+
+print(f"\n📦 Elementos extraídos:")
+print(f"   Textos: {len(texts)}")
+print(f"   Tabelas: {len(tables)}")
+print(f"   Imagens: {len(images)}")
+if filtered_count > 0 or duplicate_count > 0:
+    print(f"   (filtradas: {filtered_count} pequenas, {duplicate_count} duplicatas)")
+
+print(f"\n💾 Knowledge Base:")
 print(f"   PDF_ID: {pdf_id[:32]}...")
-print(f"   Chunks: {len(chunk_ids)} ({len(texts)}T + {len(tables)}Tab + {len(images)}I)")
+print(f"   Chunks totais: {len(chunk_ids)} ({len(texts)}T + {len(tables)}Tab + {len(images)}I)")
 print(f"   Processado em: {processed_at}")
+
+# Listar tabelas extraídas
+if tables:
+    print(f"\n📋 Tabelas encontradas ({len(tables)}):")
+    for i, table in enumerate(tables):
+        table_preview = table.text[:80] if hasattr(table, 'text') else str(table)[:80]
+        page_num = table.metadata.page_number if hasattr(table, 'metadata') and hasattr(table.metadata, 'page_number') else '?'
+        print(f"   [{i+1}] Página {page_num}: {table_preview}...")
+
+# Detectar possível problema de OCR (muito inglês em PDF português)
+all_text_content = " ".join([t.text for t in texts if hasattr(t, 'text')])
+if len(all_text_content) > 100:
+    # Palavras comuns em inglês
+    english_indicators = ['the ', ' and ', ' or ', ' with ', ' from ', ' this ', ' that ']
+    english_count = sum(all_text_content.lower().count(word) for word in english_indicators)
+    words_total = len(all_text_content.split())
+    english_ratio = english_count / max(words_total, 1) * 100
+
+    if english_ratio > 15:
+        print(f"\n⚠️  AVISO: Detectado {english_ratio:.1f}% de indicadores de inglês")
+        print(f"   O PDF pode ter sido mal processado.")
+        print(f"   Considere verificar se o conteúdo está correto.")
+
+print("\n" + "=" * 70)
 
 print(f"\n✅ Pronto! Use:")
 print(f"   - python consultar.py (terminal)")
 print(f"   - /chat (web UI)")
 print(f"   - /manage (gerenciar documentos)")
+print()
 
