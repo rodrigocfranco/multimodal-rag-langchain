@@ -1005,6 +1005,117 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         except Exception as e:
             return jsonify({"error": str(e), "status": "error"}), 500
 
+    @app.route('/debug-docids', methods=['GET'])
+    def debug_docids():
+        """CRITICAL: Diagnose doc_id mapping between vectorstore and docstore"""
+        try:
+            result = {
+                "vectorstore_analysis": {},
+                "docstore_analysis": {},
+                "mapping_check": {},
+                "diagnosis": ""
+            }
+
+            # 1. Analyze vectorstore embeddings
+            try:
+                # Get ALL embeddings from vectorstore
+                collection = vectorstore._collection
+                all_data = collection.get(include=['metadatas', 'documents'])
+
+                result["vectorstore_analysis"]["total_embeddings"] = len(all_data['ids'])
+                result["vectorstore_analysis"]["sample_ids"] = all_data['ids'][:5]
+
+                # Extract doc_ids from metadata
+                doc_ids_in_vectorstore = []
+                for metadata in all_data['metadatas']:
+                    doc_id = metadata.get('doc_id', 'NO_DOC_ID')
+                    doc_ids_in_vectorstore.append(doc_id)
+
+                result["vectorstore_analysis"]["doc_ids_sample"] = doc_ids_in_vectorstore[:5]
+                result["vectorstore_analysis"]["doc_ids_unique"] = list(set(doc_ids_in_vectorstore))[:10]
+                result["vectorstore_analysis"]["has_no_doc_id"] = 'NO_DOC_ID' in doc_ids_in_vectorstore
+
+                # Show sample metadata
+                result["vectorstore_analysis"]["sample_metadata"] = all_data['metadatas'][:3]
+
+            except Exception as e:
+                result["vectorstore_analysis"]["error"] = str(e)
+
+            # 2. Analyze docstore
+            try:
+                docstore_keys = list(store.store.keys())
+                result["docstore_analysis"]["total_docs"] = len(docstore_keys)
+                result["docstore_analysis"]["sample_keys"] = docstore_keys[:10]
+
+                # Show sample doc
+                if docstore_keys:
+                    sample_key = docstore_keys[0]
+                    sample_doc = store.store[sample_key]
+
+                    # Extract preview
+                    if hasattr(sample_doc, 'text'):
+                        preview = sample_doc.text[:100]
+                    elif hasattr(sample_doc, 'page_content'):
+                        preview = sample_doc.page_content[:100]
+                    else:
+                        preview = str(sample_doc)[:100]
+
+                    result["docstore_analysis"]["sample_doc"] = {
+                        "key": sample_key,
+                        "type": type(sample_doc).__name__,
+                        "preview": preview
+                    }
+
+            except Exception as e:
+                result["docstore_analysis"]["error"] = str(e)
+
+            # 3. Check mapping
+            try:
+                doc_ids_vs = set(doc_ids_in_vectorstore)
+                doc_ids_ds = set(docstore_keys)
+
+                matches = doc_ids_vs.intersection(doc_ids_ds)
+                vs_only = doc_ids_vs - doc_ids_ds
+                ds_only = doc_ids_ds - doc_ids_vs
+
+                result["mapping_check"]["matches_count"] = len(matches)
+                result["mapping_check"]["matches_sample"] = list(matches)[:5]
+                result["mapping_check"]["in_vectorstore_only"] = list(vs_only)[:5]
+                result["mapping_check"]["in_docstore_only"] = list(ds_only)[:5]
+                result["mapping_check"]["total_vs_doc_ids"] = len(doc_ids_vs)
+                result["mapping_check"]["total_ds_keys"] = len(doc_ids_ds)
+
+                # Diagnosis
+                if len(matches) == 0:
+                    result["diagnosis"] = "CRITICAL: NO MATCHES! doc_ids in vectorstore don't match any keys in docstore. This explains why retrieval returns 0 results."
+                elif len(matches) < len(doc_ids_vs):
+                    result["diagnosis"] = f"PARTIAL MISMATCH: Only {len(matches)}/{len(doc_ids_vs)} doc_ids match. Some embeddings can't find their documents."
+                else:
+                    result["diagnosis"] = "OK: All doc_ids in vectorstore have matching keys in docstore."
+
+            except Exception as e:
+                result["mapping_check"]["error"] = str(e)
+
+            # 4. Test direct retrieval
+            try:
+                test_results = vectorstore.similarity_search("diabetes", k=3)
+                if test_results:
+                    result["direct_search_test"] = {
+                        "count": len(test_results),
+                        "first_doc_id": test_results[0].metadata.get('doc_id', 'NO_DOC_ID'),
+                        "first_preview": test_results[0].page_content[:100]
+                    }
+                else:
+                    result["direct_search_test"] = {"count": 0, "error": "No results from similarity_search"}
+            except Exception as e:
+                result["direct_search_test"] = {"error": str(e)}
+
+            return jsonify(result)
+
+        except Exception as e:
+            import traceback
+            return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
     @app.route('/manage', methods=['GET'])
     def manage():
         """UI de gerenciamento de documentos"""
