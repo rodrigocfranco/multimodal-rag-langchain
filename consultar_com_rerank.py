@@ -138,20 +138,33 @@ if modo_api:
                 # Fallback
                 content = str(doc)
                 metadata = {}
-            
-            # Tentar identificar se é imagem (base64)
-            try:
-                b64decode(content)
+
+            # Identificar se é imagem (base64) de forma mais robusta
+            is_image = False
+
+            # Verificar metadata primeiro (mais confiável)
+            if isinstance(metadata, dict) and metadata.get('type') == 'image':
+                is_image = True
+            # Verificar se parece base64 de imagem (>1KB e decodifica)
+            elif len(content) > 1000:  # Imagens são sempre >1KB
+                try:
+                    b64decode(content[:100])  # Testar só início
+                    # Se decodifica E é grande, provavelmente é imagem
+                    is_image = True
+                except:
+                    is_image = False
+
+            if is_image:
                 b64.append(content)
-            except:
+            else:
                 # Criar objeto com .text para compatibilidade
                 class TextDoc:
                     def __init__(self, text_content, meta):
                         self.text = text_content
                         self.metadata = meta
-                
+
                 text.append(TextDoc(content, metadata))
-        
+
         return {"images": b64, "texts": text}
     
     def build_prompt(kwargs):
@@ -981,20 +994,33 @@ else:
                 # Fallback
                 content = str(doc)
                 metadata = {}
-            
-            # Tentar identificar se é imagem (base64)
-            try:
-                b64decode(content)
+
+            # Identificar se é imagem (base64) de forma mais robusta
+            is_image = False
+
+            # Verificar metadata primeiro (mais confiável)
+            if isinstance(metadata, dict) and metadata.get('type') == 'image':
+                is_image = True
+            # Verificar se parece base64 de imagem (>1KB e decodifica)
+            elif len(content) > 1000:  # Imagens são sempre >1KB
+                try:
+                    b64decode(content[:100])  # Testar só início
+                    # Se decodifica E é grande, provavelmente é imagem
+                    is_image = True
+                except:
+                    is_image = False
+
+            if is_image:
                 b64.append(content)
-            except:
+            else:
                 # Criar objeto com .text para compatibilidade
                 class TextDoc:
                     def __init__(self, text_content, meta):
                         self.text = text_content
                         self.metadata = meta
-                
+
                 text.append(TextDoc(content, metadata))
-        
+
         return {"images": b64, "texts": text}
     
     def build_prompt(kwargs):
