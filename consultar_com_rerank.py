@@ -789,6 +789,77 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         except FileNotFoundError:
             return "<h1>UI de debug retrieval não encontrada</h1>", 404
 
+    @app.route('/debug-table-chunking', methods=['GET'])
+    def debug_table_chunking():
+        """Diagnosticar como a tabela de risco cardiovascular foi chunkeada"""
+        try:
+            results = {
+                "total_chunks": len(store.store),
+                "relevant_chunks": [],
+                "analysis": {}
+            }
+
+            # Buscar chunks relevantes
+            for chunk_id, doc in store.store.items():
+                # Extrair texto
+                text = ""
+                if hasattr(doc, 'text'):
+                    text = doc.text
+                elif hasattr(doc, 'page_content'):
+                    text = doc.page_content
+                elif isinstance(doc, str):
+                    text = doc
+                else:
+                    text = str(doc)
+
+                text_lower = text.lower()
+
+                # Verificar keywords da tabela
+                if any(kw in text_lower for kw in [
+                    'hipercolesterolemia familiar',
+                    'muito alto',
+                    'risco cardiovascular',
+                    '3 ou mais fatores',
+                    'três ou mais fatores'
+                ]):
+                    keywords_found = []
+                    if 'hipercolesterolemia familiar' in text_lower:
+                        keywords_found.append('Hipercolesterolemia Familiar')
+                    if '3 ou mais fatores' in text_lower or 'três ou mais fatores' in text_lower:
+                        keywords_found.append('3 ou mais fatores')
+                    if 'muito alto' in text_lower:
+                        keywords_found.append('MUITO ALTO')
+                    if ' alto' in text_lower and 'muito alto' not in text_lower:
+                        keywords_found.append('ALTO (sem muito)')
+                    if 'moderado' in text_lower:
+                        keywords_found.append('MODERADO')
+
+                    results["relevant_chunks"].append({
+                        "chunk_id": chunk_id[:16] + "...",
+                        "type": type(doc).__name__,
+                        "text": text[:1000],  # Primeiros 1000 chars
+                        "length": len(text),
+                        "keywords": keywords_found
+                    })
+
+            # Análise
+            hf_chunks = [c for c in results["relevant_chunks"] if 'Hipercolesterolemia Familiar' in c["keywords"]]
+            ma_chunks = [c for c in results["relevant_chunks"] if 'MUITO ALTO' in c["keywords"]]
+            hf_and_ma = [c for c in hf_chunks if 'MUITO ALTO' in c["keywords"]]
+
+            results["analysis"] = {
+                "chunks_with_HF": len(hf_chunks),
+                "chunks_with_MUITO_ALTO": len(ma_chunks),
+                "chunks_with_BOTH": len(hf_and_ma),
+                "problem_detected": len(hf_and_ma) == 0,
+                "diagnosis": "Tabela foi quebrada incorretamente - HF não está no mesmo chunk que MUITO ALTO" if len(hf_and_ma) == 0 else "HF e MUITO ALTO estão no mesmo chunk"
+            }
+
+            return jsonify(results)
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     # =============== Document Management ===============
     from document_manager import get_all_documents, get_document_by_id, delete_document as delete_doc_func, get_global_stats
 
