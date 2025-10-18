@@ -245,6 +245,25 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             # Buscar COM rerank
             reranked_docs = retriever.invoke(question)
 
+            # Analisar conteúdo completo dos docs rerankeados
+            reranked_full = []
+            for i, doc in enumerate(reranked_docs):
+                content = ""
+                if hasattr(doc, 'page_content'):
+                    content = doc.page_content
+                elif hasattr(doc, 'text'):
+                    content = doc.text
+                else:
+                    content = str(doc)
+
+                reranked_full.append({
+                    "index": i,
+                    "content": content[:500],  # Primeiros 500 chars
+                    "full_length": len(content),
+                    "type": type(doc).__name__,
+                    "metadata": doc.metadata if hasattr(doc, 'metadata') else {}
+                })
+
             return jsonify({
                 "query": question,
                 "raw_retrieval": {
@@ -261,13 +280,14 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 },
                 "reranked": {
                     "count": len(reranked_docs),
-                    "docs": [
+                    "docs_preview": [
                         {
                             "content_preview": str(doc.page_content)[:200] if hasattr(doc, 'page_content') else str(doc)[:200],
                             "type": type(doc).__name__
                         }
                         for doc in reranked_docs[:5]
-                    ]
+                    ],
+                    "docs_full": reranked_full  # Conteúdo completo de TODOS os docs rerankeados
                 }
             })
         except Exception as e:
