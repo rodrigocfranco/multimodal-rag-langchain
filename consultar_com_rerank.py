@@ -104,18 +104,73 @@ if modo_api:
     
     # Wrapper do retriever para converter objetos
     wrapped_retriever = DocumentConverter(retriever=base_retriever)
-    
-    # 🔥 RERANKER COHERE
+
+    # ===========================================================================
+    # 🚀 HYBRID SEARCH: BM25 + VECTOR (ROBUST SOLUTION)
+    # ===========================================================================
+    print("🚀 Inicializando Hybrid Search (BM25 + Vector)...")
+
+    from langchain.retrievers import EnsembleRetriever
+    from langchain_community.retrievers import BM25Retriever
+
+    # Carregar TODOS os documentos do docstore para BM25
+    all_docs_for_bm25 = []
+    for doc_id, doc in store.store.items():
+        # Converter para Document do LangChain
+        if hasattr(doc, 'page_content'):
+            all_docs_for_bm25.append(doc)
+        elif hasattr(doc, 'text'):
+            # Converter Unstructured para Document
+            metadata = {}
+            if hasattr(doc, 'metadata'):
+                if isinstance(doc.metadata, dict):
+                    metadata = doc.metadata
+                elif hasattr(doc.metadata, 'to_dict'):
+                    metadata = doc.metadata.to_dict()
+                else:
+                    metadata = {}
+
+            all_docs_for_bm25.append(Document(
+                page_content=doc.text,
+                metadata=metadata
+            ))
+        elif isinstance(doc, str):
+            # Imagens (base64) - pular, BM25 é para texto
+            pass
+
+    print(f"   Documentos carregados para BM25: {len(all_docs_for_bm25)}")
+
+    # BM25 Retriever (keyword-based)
+    bm25_retriever = BM25Retriever.from_documents(all_docs_for_bm25)
+    bm25_retriever.k = 40  # Buscar mais docs, o reranker vai filtrar
+
+    # Ensemble: combinar BM25 (keyword) + Vector (semantic)
+    hybrid_retriever = EnsembleRetriever(
+        retrievers=[bm25_retriever, wrapped_retriever],
+        weights=[0.4, 0.6]  # 40% BM25 (keywords), 60% vector (semântica)
+    )
+
+    print(f"   ✅ Hybrid Search configurado")
+    print(f"      BM25 weight: 40% (keyword precision)")
+    print(f"      Vector weight: 60% (semantic understanding)")
+
+    # ===========================================================================
+    # 🔥 RERANKER COHERE (sobre resultados híbridos)
+    # ===========================================================================
+    print("🔥 Inicializando Cohere Reranker...")
+
     compressor = CohereRerank(
         model="rerank-multilingual-v3.0",  # Suporta português
         top_n=12  # ✅ OTIMIZADO: Aumentado para 12 para perguntas com info dispersa
     )
-    
-    # Retriever com reranking (agora recebe Documents)
+
+    # Retriever FINAL: Hybrid + Rerank
     retriever = ContextualCompressionRetriever(
         base_compressor=compressor,
-        base_retriever=wrapped_retriever
+        base_retriever=hybrid_retriever  # ✅ USANDO HYBRID em vez de só wrapped_retriever
     )
+
+    print(f"   ✅ Pipeline completo: BM25 + Vector → Cohere Rerank → Top 12\n")
     
     def parse_docs(docs):
         """Docs podem ser: Document, Table, CompositeElement, ou string"""
