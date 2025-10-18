@@ -341,6 +341,18 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 test_results = vectorstore.similarity_search("diabetes", k=3)
                 volume_info["test_search_count"] = len(test_results)
                 volume_info["test_search_preview"] = [r.page_content[:100] for r in test_results] if test_results else []
+
+                # VERIFICAR doc_ids no vectorstore vs docstore
+                if test_results:
+                    vectorstore_doc_ids = [r.metadata.get('doc_id', 'NO_DOC_ID') for r in test_results]
+                    volume_info["vectorstore_doc_ids"] = vectorstore_doc_ids
+
+                    docstore_keys = list(store.store.keys())[:5]
+                    volume_info["docstore_sample_keys"] = docstore_keys
+
+                    # Verificar se doc_ids batem
+                    matches = [doc_id in store.store for doc_id in vectorstore_doc_ids]
+                    volume_info["doc_id_matches"] = matches
             except Exception as e:
                 volume_info["chroma_count"] = f"error: {str(e)}"
                 volume_info["test_search_error"] = str(e)
