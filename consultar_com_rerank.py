@@ -1116,6 +1116,96 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             import traceback
             return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
+    @app.route('/inspect-tables', methods=['GET'])
+    def inspect_tables():
+        """CRITICAL: Inspect actual table content extracted from PDFs"""
+        try:
+            result = {
+                "tables_found": [],
+                "total_tables": 0,
+                "analysis": {}
+            }
+
+            # Iterate through ALL docs in docstore
+            for doc_id, doc in store.store.items():
+                # Extract text
+                text = ""
+                doc_type = type(doc).__name__
+
+                if hasattr(doc, 'text'):
+                    text = doc.text
+                elif hasattr(doc, 'page_content'):
+                    text = doc.page_content
+                else:
+                    text = str(doc)
+
+                # Extract metadata
+                metadata = {}
+                if hasattr(doc, 'metadata'):
+                    if isinstance(doc.metadata, dict):
+                        metadata = doc.metadata
+                    elif hasattr(doc.metadata, 'to_dict'):
+                        metadata = doc.metadata.to_dict()
+                    else:
+                        metadata = {"raw_type": str(type(doc.metadata).__name__)}
+
+                # Check if it's a table
+                is_table = (
+                    "Table" in doc_type or
+                    metadata.get('type') == 'table' or
+                    'tabela' in text.lower()[:200]
+                )
+
+                if is_table:
+                    # Check for critical keywords
+                    has_3_fatores = any(kw in text.lower() for kw in [
+                        '3 ou mais fatores',
+                        'três ou mais fatores',
+                        '3 ou + fatores'
+                    ])
+
+                    has_hipercolesterolemia = 'hipercolesterolemia familiar' in text.lower()
+                    has_muito_alto = 'muito alto' in text.lower()
+                    has_albuminuria = 'albuminúria' in text.lower() or 'albuminuria' in text.lower()
+
+                    result["tables_found"].append({
+                        "doc_id": doc_id[:16] + "...",
+                        "type": doc_type,
+                        "length": len(text),
+                        "full_text": text,  # TEXTO COMPLETO da tabela
+                        "metadata": metadata,
+                        "keywords_found": {
+                            "3_ou_mais_fatores": has_3_fatores,
+                            "hipercolesterolemia_familiar": has_hipercolesterolemia,
+                            "muito_alto": has_muito_alto,
+                            "albuminuria": has_albuminuria
+                        }
+                    })
+
+            result["total_tables"] = len(result["tables_found"])
+
+            # Analysis
+            if result["total_tables"] > 0:
+                tables_with_3_fatores = sum(1 for t in result["tables_found"] if t["keywords_found"]["3_ou_mais_fatores"])
+                tables_with_hf = sum(1 for t in result["tables_found"] if t["keywords_found"]["hipercolesterolemia_familiar"])
+
+                result["analysis"] = {
+                    "tables_with_3_fatores": tables_with_3_fatores,
+                    "tables_with_hipercolesterolemia": tables_with_hf,
+                    "missing_column_2": tables_with_3_fatores == 0 and tables_with_hf == 0,
+                    "diagnosis": "COLUMN 2 MISSING from table extraction!" if (tables_with_3_fatores == 0 and tables_with_hf == 0) else "Column 2 found in tables"
+                }
+            else:
+                result["analysis"] = {
+                    "diagnosis": "NO TABLES FOUND in docstore!"
+                }
+
+            return jsonify(result)
+
+        except Exception as e:
+            import traceback
+            return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
     @app.route('/manage', methods=['GET'])
     def manage():
         """UI de gerenciamento de documentos"""
