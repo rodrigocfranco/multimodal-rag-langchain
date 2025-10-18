@@ -362,6 +362,238 @@ if filtered_count > 0:
 print()
 
 # ===========================================================================
+# EXTRAÇÃO ROBUSTA DE TABELAS COM VISION API
+# ===========================================================================
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
+
+def validate_table_completeness(table_text, critical_keywords=None):
+    """
+    Valida se tabela está completa baseado em keywords esperadas
+
+    Args:
+        table_text: Texto extraído da tabela
+        critical_keywords: Lista de keywords que DEVEM estar presentes
+
+    Returns:
+        dict com completeness score e keywords faltando
+    """
+    if not critical_keywords:
+        # Keywords médicos comuns em tabelas de diretrizes
+        critical_keywords = [
+            "muito alto", "alto", "moderado", "baixo",  # Classificações
+            "hipercolesterolemia", "albuminúria", "TFG",  # Termos médicos
+            "fatores de risco", "critérios"  # Estrutura
+        ]
+
+    missing = []
+    for keyword in critical_keywords:
+        if keyword.lower() not in table_text.lower():
+            missing.append(keyword)
+
+    completeness = 1 - (len(missing) / len(critical_keywords))
+
+    return {
+        "complete": len(missing) == 0,
+        "completeness": completeness,
+        "missing_keywords": missing,
+        "total_keywords": len(critical_keywords)
+    }
+
+
+def extract_table_with_vision(table_element, pdf_filename):
+    """
+    Extrai tabela usando GPT-4o Vision - MÉTODO ROBUSTO
+
+    Args:
+        table_element: Elemento Table do Unstructured
+        pdf_filename: Nome do arquivo PDF (para contexto)
+
+    Returns:
+        tuple: (vision_text, success, metadata)
+    """
+    # Verificar se tabela tem imagem
+    if not hasattr(table_element, 'metadata') or not hasattr(table_element.metadata, 'image_base64'):
+        return None, False, {"error": "No image available"}
+
+    image_b64 = table_element.metadata.image_base64
+    if not image_b64 or len(image_b64) < 100:
+        return None, False, {"error": "Image too small"}
+
+    page_num = table_element.metadata.page_number if hasattr(table_element.metadata, 'page_number') else '?'
+
+    try:
+        llm = ChatOpenAI(model="gpt-4o", max_tokens=2000, temperature=0)
+
+        prompt = f"""Você é um especialista em extração de tabelas médicas.
+
+TAREFA CRÍTICA: Extraia COMPLETAMENTE esta tabela, preservando TODAS as colunas e linhas.
+
+INSTRUÇÕES:
+1. Identifique TODAS as colunas (mesmo se parecerem vazias ou com pouco texto)
+2. Preserve a estrutura EXATA da tabela
+3. Use formato Markdown table
+4. Se houver headers, identifique-os claramente
+5. IMPORTANTE: NÃO omita nenhuma coluna - tabelas médicas frequentemente têm colunas sutis
+
+CONTEXTO:
+- Documento: {pdf_filename}
+- Página: {page_num}
+- Tipo: Diretriz médica/científica
+
+FORMATO DE SAÍDA:
+Forneça a tabela em Markdown, começando com | Coluna1 | Coluna2 | ... |
+
+TABELA:"""
+
+        message = HumanMessage(
+            content=[
+                {"type": "text", "text": prompt},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}
+                }
+            ]
+        )
+
+        response = llm.invoke([message])
+        vision_text = response.content
+
+        return vision_text, True, {
+            "page": page_num,
+            "length": len(vision_text),
+            "method": "gpt-4o-vision"
+        }
+
+    except Exception as e:
+        return None, False, {"error": str(e)[:100]}
+
+
+def extract_table_robust(table_element, pdf_filename, table_index):
+    """
+    EXTRAÇÃO ROBUSTA: OCR + Vision + Validação + Decisão Inteligente
+
+    Esta é a função DEFINITIVA para extração de tabelas.
+
+    Args:
+        table_element: Elemento Table do Unstructured
+        pdf_filename: Nome do PDF
+        table_index: Índice da tabela (para logging)
+
+    Returns:
+        tuple: (final_text, method_used, quality_report)
+    """
+    # 1. Extrair com OCR (Unstructured)
+    ocr_text = table_element.text if hasattr(table_element, 'text') else str(table_element)
+    ocr_length = len(ocr_text.split())
+
+    # 2. Extrair com Vision (GPT-4o)
+    vision_text, vision_success, vision_meta = extract_table_with_vision(table_element, pdf_filename)
+    vision_length = len(vision_text.split()) if vision_success else 0
+
+    # 3. Validar completude de AMBOS
+    ocr_validation = validate_table_completeness(ocr_text)
+    vision_validation = validate_table_completeness(vision_text) if vision_success else {"complete": False, "completeness": 0}
+
+    # 4. DECISÃO INTELIGENTE: Qual método usar?
+
+    # Caso 1: Vision falhou -> usar OCR (sem escolha)
+    if not vision_success:
+        method = "ocr_only"
+        final_text = ocr_text
+        confidence = "low" if ocr_validation["completeness"] < 0.7 else "medium"
+
+    # Caso 2: OCR perdeu >30% do conteúdo -> usar Vision
+    elif vision_length > 0 and ocr_length < 0.7 * vision_length:
+        method = "vision_primary"
+        final_text = f"{vision_text}\n\n[OCR BACKUP]\n{ocr_text}"
+        confidence = "high"
+
+    # Caso 3: Vision tem mais keywords críticos -> usar Vision
+    elif vision_validation["completeness"] > ocr_validation["completeness"]:
+        method = "vision_primary"
+        final_text = f"{vision_text}\n\n[OCR BACKUP]\n{ocr_text}"
+        confidence = "high"
+
+    # Caso 4: OCR está OK -> usar OCR (mais barato)
+    else:
+        method = "ocr_primary"
+        final_text = f"{ocr_text}\n\n[VISION BACKUP]\n{vision_text}" if vision_success else ocr_text
+        confidence = "high" if ocr_validation["completeness"] > 0.8 else "medium"
+
+    # 5. Relatório de qualidade
+    quality_report = {
+        "table_index": table_index,
+        "method_used": method,
+        "confidence": confidence,
+        "ocr": {
+            "length_words": ocr_length,
+            "completeness": ocr_validation["completeness"],
+            "missing": ocr_validation["missing_keywords"]
+        },
+        "vision": {
+            "success": vision_success,
+            "length_words": vision_length,
+            "completeness": vision_validation["completeness"],
+            "missing": vision_validation.get("missing_keywords", [])
+        } if vision_success else {"success": False},
+        "final_length": len(final_text.split())
+    }
+
+    return final_text, method, quality_report
+
+
+# Processar TODAS as tabelas com extração robusta
+if tables:
+    print(f"\n🔬 Processamento robusto de tabelas (OCR + Vision)...")
+
+    tables_quality_reports = []
+    vision_used_count = 0
+    ocr_only_count = 0
+
+    for i, table in enumerate(tables):
+        # Extrair com método robusto
+        robust_text, method, quality = extract_table_robust(table, pdf_filename, i)
+
+        # Atualizar texto da tabela com versão robusta
+        if hasattr(table, 'text'):
+            table.text = robust_text
+        else:
+            # Criar wrapper se necessário
+            class TableWithText:
+                def __init__(self, text, metadata):
+                    self.text = text
+                    self.metadata = metadata
+
+            original_metadata = table.metadata if hasattr(table, 'metadata') else None
+            tables[i] = TableWithText(robust_text, original_metadata)
+
+        # Tracking
+        tables_quality_reports.append(quality)
+        if "vision" in method:
+            vision_used_count += 1
+        else:
+            ocr_only_count += 1
+
+        # Log progress
+        status_icon = "✅" if quality["confidence"] == "high" else "⚠️"
+        print(f"   [{i+1}/{len(tables)}] {status_icon} {method} (confidence: {quality['confidence']})")
+
+        # Mostrar warnings
+        if quality["ocr"]["missing"]:
+            print(f"      OCR missing: {', '.join(quality['ocr']['missing'][:3])}")
+        if quality["vision"]["success"] and quality["vision"]["missing"]:
+            print(f"      Vision missing: {', '.join(quality['vision']['missing'][:3])}")
+
+        time.sleep(0.5)  # Rate limiting
+
+    print(f"\n   📊 Resumo:")
+    print(f"      Vision usado: {vision_used_count}/{len(tables)} tabelas")
+    print(f"      OCR apenas: {ocr_only_count}/{len(tables)} tabelas")
+    print(f"      Confiança alta: {sum(1 for r in tables_quality_reports if r['confidence'] == 'high')}/{len(tables)}")
+    print()
+
+# ===========================================================================
 # GERAR RESUMOS COM IA
 # ===========================================================================
 from langchain_groq import ChatGroq
