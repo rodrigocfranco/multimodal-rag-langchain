@@ -410,6 +410,34 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                         "error": str(e),
                         "success": False
                     }
+
+                # TESTE 4: Testar parse_docs (separação texto/imagem)
+                try:
+                    parsed = parse_docs(reranked_results)
+                    volume_info["parse_docs_test"] = {
+                        "texts_count": len(parsed["texts"]),
+                        "images_count": len(parsed["images"]),
+                        "success": len(parsed["texts"]) > 0
+                    }
+                except Exception as e:
+                    volume_info["parse_docs_test"] = {
+                        "error": str(e),
+                        "success": False
+                    }
+
+                # TESTE 5: Testar chain completo (pode falhar se OpenAI estiver com problema)
+                try:
+                    test_response = chain.invoke("diabetes")
+                    volume_info["chain_test"] = {
+                        "success": True,
+                        "response_length": len(test_response.get("response", "")),
+                        "has_context": "context" in test_response
+                    }
+                except Exception as e:
+                    volume_info["chain_test"] = {
+                        "error": str(e)[:200],
+                        "success": False
+                    }
             except Exception as e:
                 volume_info["chroma_count"] = f"error: {str(e)}"
                 volume_info["test_search_error"] = str(e)
