@@ -336,8 +336,14 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 collection = vectorstore._collection
                 count = collection.count()
                 volume_info["chroma_count"] = count
-            except:
-                volume_info["chroma_count"] = "error"
+
+                # TESTE DIRETO: buscar com similarity_search
+                test_results = vectorstore.similarity_search("diabetes", k=3)
+                volume_info["test_search_count"] = len(test_results)
+                volume_info["test_search_preview"] = [r.page_content[:100] for r in test_results] if test_results else []
+            except Exception as e:
+                volume_info["chroma_count"] = f"error: {str(e)}"
+                volume_info["test_search_error"] = str(e)
 
             # Verificar docstore
             if os.path.exists(f"{persist_directory}/docstore.pkl"):
