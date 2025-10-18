@@ -13,7 +13,7 @@ from langchain.retrievers.multi_vector import MultiVectorRetriever
 
 load_dotenv()
 
-persist_directory = "./knowledge_base"
+persist_directory = "./knowledge"
 
 print("=" * 70)
 print("🔍 DIAGNÓSTICO DO RETRIEVAL")

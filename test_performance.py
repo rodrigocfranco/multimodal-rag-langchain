@@ -16,7 +16,7 @@ print("=" * 70)
 print()
 
 # Verificar se há knowledge base
-persist_directory = "./knowledge_base"
+persist_directory = "./knowledge"
 if not os.path.exists(persist_directory):
     print("❌ Knowledge base não encontrado!")
     print("Execute: python adicionar_pdf.py <arquivo.pdf>")

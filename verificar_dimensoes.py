@@ -8,7 +8,7 @@ import os
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 
-persist_directory = "./knowledge_base"
+persist_directory = "./knowledge"
 
 print("=" * 70)
 print("🔍 DIAGNÓSTICO: Dimensões de Embeddings")
