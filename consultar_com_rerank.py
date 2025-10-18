@@ -256,12 +256,22 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 else:
                     content = str(doc)
 
+                # Converter metadata para dict (pode ser ElementMetadata)
+                metadata = {}
+                if hasattr(doc, 'metadata'):
+                    if isinstance(doc.metadata, dict):
+                        metadata = doc.metadata
+                    elif hasattr(doc.metadata, 'to_dict'):
+                        metadata = doc.metadata.to_dict()
+                    else:
+                        metadata = {"type": str(type(doc.metadata).__name__)}
+
                 reranked_full.append({
                     "index": i,
                     "content": content[:500],  # Primeiros 500 chars
                     "full_length": len(content),
                     "type": type(doc).__name__,
-                    "metadata": doc.metadata if hasattr(doc, 'metadata') else {}
+                    "metadata": metadata
                 })
 
             # Analisar raw docs também
@@ -275,12 +285,22 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 else:
                     content = str(doc)
 
+                # Converter metadata para dict (pode ser ElementMetadata)
+                metadata = {}
+                if hasattr(doc, 'metadata'):
+                    if isinstance(doc.metadata, dict):
+                        metadata = doc.metadata
+                    elif hasattr(doc.metadata, 'to_dict'):
+                        metadata = doc.metadata.to_dict()
+                    else:
+                        metadata = {"type": str(type(doc.metadata).__name__)}
+
                 raw_full.append({
                     "index": i,
                     "content": content[:500],  # Primeiros 500 chars
                     "full_length": len(content),
                     "type": type(doc).__name__,
-                    "metadata": doc.metadata if hasattr(doc, 'metadata') else {}
+                    "metadata": metadata
                 })
 
             return jsonify({
