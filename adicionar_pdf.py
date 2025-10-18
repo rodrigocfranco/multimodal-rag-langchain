@@ -307,26 +307,52 @@ def infer_document_type(filename):
     return 'medical_article'
 
 
-# Extrair imagens base64 dos CompositeElements
+# Extrair imagens base64 dos chunks
 def get_images_base64(chunks):
     """
-    Extrai imagens de dentro dos CompositeElements.
-    Imagens vêm em metadata.orig_elements
+    Extrai imagens de:
+    1. Elementos Image de primeira classe (diretos)
+    2. Imagens dentro de CompositeElement.metadata.orig_elements
+
+    Filtra imagens pequenas (<5KB) que geralmente são ícones/decoração
     """
     images_b64 = []
     seen_hashes = set()  # Deduplicação
     filtered_count = 0
+    total_found = 0
 
     # Filtro: imagens muito pequenas geralmente são ícones/decoração
     MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "5"))
 
     for chunk in chunks:
-        if "CompositeElement" in str(type(chunk)):
+        chunk_type = str(type(chunk))
+
+        # CASO 1: Elementos Image de primeira classe
+        if "Image" in chunk_type:
+            total_found += 1
+            if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'image_base64'):
+                img = chunk.metadata.image_base64
+                if img and len(img) > 100:
+                    size_kb = len(img) / 1024
+
+                    # Filtrar imagens muito pequenas
+                    if size_kb >= MIN_IMAGE_SIZE_KB:
+                        # Deduplicar por hash
+                        img_hash = hash(img[:1000])
+                        if img_hash not in seen_hashes:
+                            seen_hashes.add(img_hash)
+                            images_b64.append(img)
+                    else:
+                        filtered_count += 1
+
+        # CASO 2: Imagens dentro de CompositeElements
+        elif "CompositeElement" in chunk_type:
             if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'orig_elements'):
                 chunk_els = chunk.metadata.orig_elements
                 if chunk_els:
                     for el in chunk_els:
                         if "Image" in str(type(el)):
+                            total_found += 1
                             if hasattr(el, 'metadata') and hasattr(el.metadata, 'image_base64'):
                                 img = el.metadata.image_base64
                                 if img and len(img) > 100:
@@ -342,9 +368,9 @@ def get_images_base64(chunks):
                                     else:
                                         filtered_count += 1
 
-    return images_b64, filtered_count
+    return images_b64, filtered_count, total_found
 
-images, filtered_count = get_images_base64(chunks)
+images, filtered_count, total_images_found = get_images_base64(chunks)
 duplicate_count = 0  # Já deduplicado na função
 
 # Modo debug: mostrar detalhes das imagens
@@ -353,12 +379,13 @@ if os.getenv("DEBUG_IMAGES"):
     for i, img in enumerate(images):
         size_kb = len(img) / 1024
         print(f"     Imagem {i+1}: {size_kb:.1f} KB")
+    print(f"   [DEBUG] Total encontrado: {total_images_found}")
     print(f"   [DEBUG] Filtradas (muito pequenas): {filtered_count}")
     print(f"   [DEBUG] Duplicatas removidas: {duplicate_count}")
 
 print(f"   ✓ {len(texts)} textos, {len(tables)} tabelas, {len(images)} imagens")
 if filtered_count > 0:
-    print(f"      (filtradas: {filtered_count} imagens pequenas <5KB)")
+    print(f"      (detectadas: {total_images_found}, filtradas: {filtered_count} imagens pequenas <5KB)")
 print()
 
 # ===========================================================================
