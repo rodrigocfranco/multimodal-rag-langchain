@@ -139,24 +139,11 @@ if modo_api:
                 content = str(doc)
                 metadata = {}
 
-            # Identificar se é imagem (base64) de forma mais robusta
-            is_image = False
-
-            # Verificar metadata primeiro (mais confiável)
-            if isinstance(metadata, dict) and metadata.get('type') == 'image':
-                is_image = True
-            # Verificar se parece base64 de imagem (>1KB e decodifica)
-            elif len(content) > 1000:  # Imagens são sempre >1KB
-                try:
-                    b64decode(content[:100])  # Testar só início
-                    # Se decodifica E é grande, provavelmente é imagem
-                    is_image = True
-                except:
-                    is_image = False
-
-            if is_image:
+            # Tentar identificar se é imagem (base64)
+            try:
+                b64decode(content)
                 b64.append(content)
-            else:
+            except:
                 # Criar objeto com .text para compatibilidade
                 class TextDoc:
                     def __init__(self, text_content, meta):
@@ -332,6 +319,37 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 "exists": os.path.exists(persist_directory),
                 "files": []
             }
+
+            # TESTE DE API KEYS
+            api_keys_test = {}
+
+            # 1. OpenAI API Key
+            try:
+                from langchain_openai import ChatOpenAI
+                test_llm = ChatOpenAI(model="gpt-4o-mini", max_tokens=10)
+                test_llm.invoke("test")
+                api_keys_test["openai"] = {"status": "OK", "model": "gpt-4o-mini"}
+            except Exception as e:
+                api_keys_test["openai"] = {"status": "FAILED", "error": str(e)[:150]}
+
+            # 2. Cohere API Key
+            try:
+                from langchain_cohere import CohereRerank
+                test_rerank = CohereRerank(model="rerank-multilingual-v3.0", top_n=1)
+                # Não tem como testar sem documentos, só verificar se instancia
+                api_keys_test["cohere"] = {"status": "OK", "model": "rerank-multilingual-v3.0"}
+            except Exception as e:
+                api_keys_test["cohere"] = {"status": "FAILED", "error": str(e)[:150]}
+
+            # 3. OpenAI Embeddings
+            try:
+                test_emb = OpenAIEmbeddings(model="text-embedding-3-large")
+                test_emb.embed_query("test")
+                api_keys_test["openai_embeddings"] = {"status": "OK", "model": "text-embedding-3-large"}
+            except Exception as e:
+                api_keys_test["openai_embeddings"] = {"status": "FAILED", "error": str(e)[:150]}
+
+            volume_info["api_keys"] = api_keys_test
 
             if os.path.exists(persist_directory):
                 files = os.listdir(persist_directory)
@@ -1046,24 +1064,11 @@ else:
                 content = str(doc)
                 metadata = {}
 
-            # Identificar se é imagem (base64) de forma mais robusta
-            is_image = False
-
-            # Verificar metadata primeiro (mais confiável)
-            if isinstance(metadata, dict) and metadata.get('type') == 'image':
-                is_image = True
-            # Verificar se parece base64 de imagem (>1KB e decodifica)
-            elif len(content) > 1000:  # Imagens são sempre >1KB
-                try:
-                    b64decode(content[:100])  # Testar só início
-                    # Se decodifica E é grande, provavelmente é imagem
-                    is_image = True
-                except:
-                    is_image = False
-
-            if is_image:
+            # Tentar identificar se é imagem (base64)
+            try:
+                b64decode(content)
                 b64.append(content)
-            else:
+            except:
                 # Criar objeto com .text para compatibilidade
                 class TextDoc:
                     def __init__(self, text_content, meta):
