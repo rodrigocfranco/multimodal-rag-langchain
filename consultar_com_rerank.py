@@ -264,11 +264,30 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                     "metadata": doc.metadata if hasattr(doc, 'metadata') else {}
                 })
 
+            # Analisar raw docs também
+            raw_full = []
+            for i, doc in enumerate(raw_docs):
+                content = ""
+                if hasattr(doc, 'text'):
+                    content = doc.text
+                elif hasattr(doc, 'page_content'):
+                    content = doc.page_content
+                else:
+                    content = str(doc)
+
+                raw_full.append({
+                    "index": i,
+                    "content": content[:500],  # Primeiros 500 chars
+                    "full_length": len(content),
+                    "type": type(doc).__name__,
+                    "metadata": doc.metadata if hasattr(doc, 'metadata') else {}
+                })
+
             return jsonify({
                 "query": question,
                 "raw_retrieval": {
                     "count": len(raw_docs),
-                    "docs": [
+                    "docs_preview": [
                         {
                             "content_preview": str(doc)[:200] if hasattr(doc, '__str__') else "N/A",
                             "type": type(doc).__name__,
@@ -276,7 +295,8 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                             "has_page_content": hasattr(doc, 'page_content')
                         }
                         for doc in raw_docs[:5]  # Primeiros 5
-                    ]
+                    ],
+                    "docs_full": raw_full  # Conteúdo completo de TODOS os 30 docs
                 },
                 "reranked": {
                     "count": len(reranked_docs),

@@ -59,11 +59,23 @@
         // Mostrar resultados
         let html = '';
 
-        // Raw retrieval
+        // Raw retrieval - Buscar keywords nos 30 docs
+        const rawAllContent = data.raw_retrieval.docs_full.map(d => d.content.toLowerCase()).join(' ');
+        const rawKeywords = {
+          '3 ou mais fatores': rawAllContent.includes('3 ou mais fatores') || rawAllContent.includes('três ou mais fatores'),
+          'hipercolesterolemia familiar': rawAllContent.includes('hipercolesterolemia familiar'),
+          'albuminúria >300': rawAllContent.includes('albuminúria >300') || rawAllContent.includes('albumin'),
+          'tfg <30': rawAllContent.includes('tfg <30') || rawAllContent.includes('tfg<30'),
+          'retinopatia proliferativa': rawAllContent.includes('retinopatia proliferativa'),
+          'síndrome coronariana': rawAllContent.includes('síndrome coronariana') || rawAllContent.includes('sindrome coronariana')
+        };
+
         html += `
           <div class="card">
             <h3>1️⃣ Raw Retrieval (MultiVectorRetriever)</h3>
             <p><strong>Count:</strong> ${data.raw_retrieval.count} documentos</p>
+            <h4>Keywords nos 30 docs:</h4>
+            <pre>${JSON.stringify(rawKeywords, null, 2)}</pre>
           </div>
         `;
 
