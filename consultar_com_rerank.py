@@ -780,6 +780,15 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         except FileNotFoundError:
             return "<h1>UI de debug não encontrada</h1>", 404
 
+    @app.route('/debug-retrieval-ui', methods=['GET'])
+    def debug_retrieval_ui():
+        """UI para testar debug-retrieval endpoint"""
+        try:
+            with open('ui_debug_retrieval.html', 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            return "<h1>UI de debug retrieval não encontrada</h1>", 404
+
     # =============== Document Management ===============
     from document_manager import get_all_documents, get_document_by_id, delete_document as delete_doc_func, get_global_stats
 
