@@ -322,7 +322,9 @@ def get_images_base64(chunks):
     total_found = 0
 
     # Filtro: imagens muito pequenas geralmente são ícones/decoração
-    MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "5"))
+    # Aumentado para 30KB após análise: imagens reais (figuras médicas) geralmente >30KB
+    # Imagens 5-30KB são tipicamente: ícones, logos, decorações, gráficos simples
+    MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "30"))
 
     for chunk in chunks:
         chunk_type = str(type(chunk))
@@ -385,7 +387,7 @@ if os.getenv("DEBUG_IMAGES"):
 
 print(f"   ✓ {len(texts)} textos, {len(tables)} tabelas, {len(images)} imagens")
 if filtered_count > 0:
-    print(f"      (detectadas: {total_images_found}, filtradas: {filtered_count} imagens pequenas <5KB)")
+    print(f"      (detectadas: {total_images_found}, filtradas: {filtered_count} imagens pequenas <30KB)")
 print()
 
 # ===========================================================================
@@ -942,7 +944,7 @@ print(f"   Textos (CompositeElement): {len(texts)}")
 print(f"   Tabelas (isoladas): {len(tables)}")
 print(f"   Imagens: {len(images)}")
 if filtered_count > 0:
-    print(f"   (filtradas: {filtered_count} imagens pequenas <5KB)")
+    print(f"   (filtradas: {filtered_count} imagens pequenas <30KB - ícones/decorações)")
 
 print(f"\n💾 Knowledge Base:")
 print(f"   PDF_ID: {pdf_id[:32]}...")
