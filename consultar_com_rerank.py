@@ -135,8 +135,52 @@ if modo_api:
         # 1. Recarregar docstore (pega PDFs novos adicionados)
         fresh_store = load_docstore()
 
-        # 2. Atualizar base_retriever com novo docstore
-        base_retriever.docstore = fresh_store
+        # 2. Recarregar Chroma vectorstore (pega embeddings novos do disco)
+        fresh_vectorstore = Chroma(
+            collection_name="knowledge_base",
+            embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),
+            persist_directory=persist_directory
+        )
+
+        # 3. Criar novo base_retriever com vectorstore e docstore atualizados
+        fresh_base_retriever = MultiVectorRetriever(
+            vectorstore=fresh_vectorstore,
+            docstore=fresh_store,
+            id_key="doc_id",
+            search_kwargs={"k": 30}
+        )
+
+        # 4. Criar DocumentConverter para o novo retriever
+        class FreshDocumentConverter(BaseRetriever):
+            retriever: MultiVectorRetriever
+
+            def _get_relevant_documents(
+                self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+            ) -> List[Document]:
+                docs = self.retriever.invoke(query)
+                converted = []
+                for doc in docs:
+                    if hasattr(doc, 'page_content'):
+                        converted.append(doc)
+                    elif hasattr(doc, 'text'):
+                        metadata = {}
+                        if hasattr(doc, 'metadata'):
+                            if isinstance(doc.metadata, dict):
+                                metadata = doc.metadata
+                            else:
+                                metadata = doc.metadata.to_dict() if hasattr(doc.metadata, 'to_dict') else {}
+
+                        converted.append(Document(
+                            page_content=doc.text,
+                            metadata=metadata
+                        ))
+                    elif isinstance(doc, str):
+                        converted.append(Document(page_content=doc, metadata={}))
+                    else:
+                        converted.append(Document(page_content=str(doc), metadata={}))
+                return converted
+
+        fresh_wrapped_retriever = FreshDocumentConverter(retriever=fresh_base_retriever)
 
         # 3. Reconstruir BM25 com todos documentos atualizados
         all_docs_for_bm25 = []
@@ -163,17 +207,17 @@ if modo_api:
                 # Imagens (base64) - pular, BM25 é para texto
                 pass
 
-        # 4. Reconstruir BM25 retriever
+        # 5. Reconstruir BM25 retriever
         bm25_retriever = BM25Retriever.from_documents(all_docs_for_bm25)
         bm25_retriever.k = 40
 
-        # 5. Reconstruir hybrid retriever
+        # 6. Reconstruir hybrid retriever (usando fresh_wrapped_retriever!)
         hybrid_retriever = EnsembleRetriever(
-            retrievers=[bm25_retriever, wrapped_retriever],
+            retrievers=[bm25_retriever, fresh_wrapped_retriever],
             weights=[0.4, 0.6]
         )
 
-        # 6. Reconstruir retriever final com rerank
+        # 7. Reconstruir retriever final com rerank
         retriever = ContextualCompressionRetriever(
             base_compressor=compressor,
             base_retriever=hybrid_retriever
