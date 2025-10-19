@@ -1484,6 +1484,11 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+        # ✅ INVALIDAR CACHE: Forçar reload na próxima query
+        global _last_docstore_mtime
+        _last_docstore_mtime = None  # Força get_retriever_cached() a recarregar
+        print("🔄 Cache invalidado após upload - próxima query vai recarregar retriever")
+
         return jsonify({"message": "PDF processado e adicionado ao knowledge base", "filename": f.filename})
 
     @app.route('/upload-stream', methods=['POST'])
@@ -1526,7 +1531,11 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 proc.wait()
 
                 if proc.returncode == 0:
+                    # ✅ INVALIDAR CACHE: Forçar reload na próxima query
+                    global _last_docstore_mtime
+                    _last_docstore_mtime = None
                     yield f"data: PDF processado com sucesso!\n\n"
+                    yield f"data: Cache invalidado - próxima query vai usar documento novo\n\n"
                 else:
                     yield f"data: Erro no processamento (codigo {proc.returncode})\n\n"
 
