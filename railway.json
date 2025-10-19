@@ -10,6 +10,9 @@
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
+    "environmentVariables": {
+      "PERSIST_DIR": "/app/knowledge"
+    },
     "volumeMounts": [
       {
         "mountPath": "/app/knowledge",
