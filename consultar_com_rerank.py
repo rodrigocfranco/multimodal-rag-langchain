@@ -54,12 +54,19 @@ if modo_api:
         embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),  # Modelo novo, melhor semântica
         persist_directory=persist_directory
     )
-    
-    docstore_path = f"{persist_directory}/docstore.pkl"
-    store = InMemoryStore()
-    if os.path.exists(docstore_path):
-        with open(docstore_path, 'rb') as f:
-            store.store = pickle.load(f)
+
+    # ✅ FUNÇÃO para recarregar docstore dinamicamente
+    def load_docstore():
+        """Recarrega docstore do disco (pega documentos novos)"""
+        docstore_path = f"{persist_directory}/docstore.pkl"
+        store = InMemoryStore()
+        if os.path.exists(docstore_path):
+            with open(docstore_path, 'rb') as f:
+                store.store = pickle.load(f)
+        return store
+
+    # Carregar docstore inicial
+    store = load_docstore()
 
     base_retriever = MultiVectorRetriever(
         vectorstore=vectorstore,
@@ -108,12 +115,67 @@ if modo_api:
     # ===========================================================================
     # 🚀 HYBRID SEARCH: BM25 + VECTOR (ROBUST SOLUTION)
     # ===========================================================================
-    print("🚀 Inicializando Hybrid Search (BM25 + Vector)...")
-
     from langchain.retrievers import EnsembleRetriever
     from langchain_community.retrievers import BM25Retriever
 
-    # Carregar TODOS os documentos do docstore para BM25
+    # ✅ FUNÇÃO para reconstruir retriever dinamicamente (pega docs novos!)
+    def rebuild_retriever():
+        """
+        Reconstrói o retriever recarregando docstore do disco.
+        Chamado ANTES de cada query para pegar documentos novos.
+        """
+        # 1. Recarregar docstore (pega PDFs novos adicionados)
+        fresh_store = load_docstore()
+
+        # 2. Atualizar base_retriever com novo docstore
+        base_retriever.docstore = fresh_store
+
+        # 3. Reconstruir BM25 com todos documentos atualizados
+        all_docs_for_bm25 = []
+        for doc_id, doc in fresh_store.store.items():
+            # Converter para Document do LangChain
+            if hasattr(doc, 'page_content'):
+                all_docs_for_bm25.append(doc)
+            elif hasattr(doc, 'text'):
+                # Converter Unstructured para Document
+                metadata = {}
+                if hasattr(doc, 'metadata'):
+                    if isinstance(doc.metadata, dict):
+                        metadata = doc.metadata
+                    elif hasattr(doc.metadata, 'to_dict'):
+                        metadata = doc.metadata.to_dict()
+                    else:
+                        metadata = {}
+
+                all_docs_for_bm25.append(Document(
+                    page_content=doc.text,
+                    metadata=metadata
+                ))
+            elif isinstance(doc, str):
+                # Imagens (base64) - pular, BM25 é para texto
+                pass
+
+        # 4. Reconstruir BM25 retriever
+        bm25_retriever = BM25Retriever.from_documents(all_docs_for_bm25)
+        bm25_retriever.k = 40
+
+        # 5. Reconstruir hybrid retriever
+        hybrid_retriever = EnsembleRetriever(
+            retrievers=[bm25_retriever, wrapped_retriever],
+            weights=[0.4, 0.6]
+        )
+
+        # 6. Reconstruir retriever final com rerank
+        retriever = ContextualCompressionRetriever(
+            base_compressor=compressor,
+            base_retriever=hybrid_retriever
+        )
+
+        return retriever, len(all_docs_for_bm25)
+
+    print("🚀 Inicializando Hybrid Search (BM25 + Vector)...")
+
+    # Carregar TODOS os documentos do docstore para BM25 (inicial)
     all_docs_for_bm25 = []
     for doc_id, doc in store.store.items():
         # Converter para Document do LangChain
@@ -396,7 +458,22 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             return jsonify({"error": "Campo 'question' obrigatório"}), 400
 
         try:
-            response = chain.invoke(data['question'])
+            # ✅ RECARREGAR retriever para pegar documentos novos!
+            fresh_retriever, num_docs = rebuild_retriever()
+
+            # Reconstruir chain com retriever atualizado
+            fresh_chain = {
+                "context": fresh_retriever | RunnableLambda(parse_docs),
+                "question": RunnablePassthrough(),
+            } | RunnablePassthrough().assign(
+                response=(
+                    RunnableLambda(build_prompt)
+                    | ChatOpenAI(model="gpt-4o")
+                    | StrOutputParser()
+                )
+            )
+
+            response = fresh_chain.invoke(data['question'])
 
             sources = set()
             num_chunks = len(response['context']['texts'])
@@ -415,10 +492,12 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 "answer": response['response'],
                 "sources": list(sources),
                 "chunks_used": num_chunks,
-                "reranked": True
+                "reranked": True,
+                "total_docs_indexed": num_docs  # ✅ Mostrar quantos docs estão indexados
             })
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            import traceback
+            return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
     
     @app.route('/health', methods=['GET'])
     def health():
