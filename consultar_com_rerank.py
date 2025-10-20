@@ -1585,12 +1585,26 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-        # ✅ INVALIDAR CACHE: Forçar reload na próxima query
-        global _last_docstore_mtime
-        _last_docstore_mtime = None  # Força get_retriever_cached() a recarregar
-        print("🔄 Cache invalidado após upload - próxima query vai recarregar retriever")
+        # ✅ INVALIDAR CACHE E FORÇAR REBUILD IMEDIATO
+        global _last_docstore_mtime, _cached_retriever
+        _last_docstore_mtime = None  # Força detecção de mudança
 
-        return jsonify({"message": "PDF processado e adicionado ao knowledge base", "filename": f.filename})
+        # Forçar rebuild imediato (não esperar próxima query)
+        try:
+            print("🔄 Reconstruindo retriever após upload...")
+            _cached_retriever, num_docs = rebuild_retriever()
+            _last_docstore_mtime = os.path.getmtime(f"{persist_directory}/docstore.pkl")
+            print(f"✅ Retriever reconstruído com {num_docs} documentos (incluindo novo PDF)")
+        except Exception as e:
+            print(f"⚠️ Erro ao reconstruir retriever: {str(e)}")
+            # Não falhar o upload se rebuild falhar, apenas invalidar cache
+            _last_docstore_mtime = None
+
+        return jsonify({
+            "message": "PDF processado e adicionado ao knowledge base",
+            "filename": f.filename,
+            "total_docs": num_docs if 'num_docs' in locals() else "unknown"
+        })
 
     @app.route('/upload-stream', methods=['POST'])
     def upload_stream():
@@ -1632,11 +1646,21 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 proc.wait()
 
                 if proc.returncode == 0:
-                    # ✅ INVALIDAR CACHE: Forçar reload na próxima query
-                    global _last_docstore_mtime
+                    # ✅ INVALIDAR CACHE E FORÇAR REBUILD IMEDIATO
+                    global _last_docstore_mtime, _cached_retriever
                     _last_docstore_mtime = None
-                    yield f"data: PDF processado com sucesso!\n\n"
-                    yield f"data: Cache invalidado - próxima query vai usar documento novo\n\n"
+
+                    # Forçar rebuild imediato
+                    try:
+                        yield f"data: 🔄 Reconstruindo retriever...\n\n"
+                        _cached_retriever, num_docs = rebuild_retriever()
+                        _last_docstore_mtime = os.path.getmtime(f"{persist_directory}/docstore.pkl")
+                        yield f"data: ✅ Retriever reconstruído com {num_docs} documentos\n\n"
+                        yield f"data: PDF processado com sucesso!\n\n"
+                    except Exception as e:
+                        yield f"data: ⚠️ Erro ao reconstruir retriever: {str(e)}\n\n"
+                        _last_docstore_mtime = None
+                        yield f"data: PDF processado, mas retriever será recarregado na próxima query\n\n"
                 else:
                     yield f"data: Erro no processamento (codigo {proc.returncode})\n\n"
 
