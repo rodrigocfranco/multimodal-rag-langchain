@@ -775,9 +775,15 @@ if images:
     print(f"   ✓ {len(image_summaries)} imagens processadas\n")
 
 # ===========================================================================
+# INFERIR TIPO DE DOCUMENTO (necessário para Contextual Retrieval)
+# ===========================================================================
+document_type = infer_document_type(pdf_filename)
+print(f"   Tipo de documento detectado: {document_type}")
+
+# ===========================================================================
 # CONTEXTUAL RETRIEVAL (Anthropic) - Reduz failure rate em 49%
 # ===========================================================================
-print("2️⃣.5 Gerando contexto situacional dos chunks (Contextual Retrieval)...")
+print("\n2️⃣.5 Gerando contexto situacional dos chunks (Contextual Retrieval)...")
 
 def add_contextual_prefix(chunk_text, chunk_index, chunk_type, pdf_metadata, section_name=None):
     """
@@ -920,10 +926,6 @@ retriever = MultiVectorRetriever(
     docstore=store,
     id_key="doc_id",
 )
-
-# Inferir document_type uma vez (baseado no filename)
-document_type = infer_document_type(pdf_filename)
-print(f"   Tipo detectado: {document_type}")
 
 # Adicionar com metadados
 chunk_ids = []  # Para tracking
