@@ -43,11 +43,68 @@ if modo_api:
     from langchain_core.retrievers import BaseRetriever
     from langchain_core.callbacks import CallbackManagerForRetrieverRun
     from typing import List
-    from base64 import b64decode
+    from base64 import b64decode, b64encode
     import pickle
-    
+    from PIL import Image
+    import io
+
     # Railway Volume
     persist_directory = os.getenv("PERSIST_DIR", "./knowledge")
+
+    # ===========================================================================
+    # 🖼️ IMAGE CONVERSION: Convert all images to JPEG for GPT-4 Vision
+    # ===========================================================================
+    def convert_image_to_jpeg_base64(image_base64_str):
+        """
+        Converte qualquer formato de imagem para JPEG (suportado por GPT-4 Vision).
+
+        Formatos não suportados: TIFF, BMP, ICO, etc.
+        Formatos suportados: PNG, JPEG, GIF, WEBP
+
+        Esta função garante que TODAS as imagens sejam JPEG válidas.
+        """
+        try:
+            # Decodificar base64 para bytes
+            image_bytes = b64decode(image_base64_str)
+
+            # Abrir imagem com PIL
+            img = Image.open(io.BytesIO(image_bytes))
+
+            # Converter para RGB (remove alpha channel se houver)
+            # Isso é necessário porque JPEG não suporta transparência
+            if img.mode in ('RGBA', 'LA', 'P'):
+                # Criar background branco
+                background = Image.new('RGB', img.size, (255, 255, 255))
+
+                # Converter P (palette) para RGBA primeiro
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+
+                # Colar imagem sobre background branco (preserva transparência)
+                if img.mode in ('RGBA', 'LA'):
+                    background.paste(img, mask=img.split()[-1])  # Usa alpha channel como máscara
+                else:
+                    background.paste(img)
+
+                img = background
+            elif img.mode != 'RGB':
+                # Outros modos (L, CMYK, etc.) → RGB
+                img = img.convert('RGB')
+
+            # Salvar como JPEG em buffer
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            jpeg_bytes = output.getvalue()
+
+            # Re-encodar para base64
+            jpeg_base64 = b64encode(jpeg_bytes).decode('utf-8')
+
+            return jpeg_base64, True
+
+        except Exception as e:
+            # Se conversão falhar, retornar None
+            print(f"      ⚠️  Erro ao converter imagem durante query: {str(e)[:100]}")
+            return None, False
 
     vectorstore = Chroma(
         collection_name="knowledge_base",
@@ -426,13 +483,20 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             "type": "text",
             "text": system_instruction.format(context=context, question=question)
         }]
-        
+
+        # ✅ CONVERT IMAGES TO JPEG before sending to Vision API
         for image in docs["images"]:
-            prompt_content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{image}"}
-            })
-        
+            # Convert to JPEG (handles TIFF, BMP, etc.)
+            jpeg_image, success = convert_image_to_jpeg_base64(image)
+            if success:
+                prompt_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{jpeg_image}"}
+                })
+            else:
+                # Skip images that failed to convert
+                print(f"⚠️  Skipping image that failed JPEG conversion")
+
         return ChatPromptTemplate.from_messages([HumanMessage(content=prompt_content)])
     
     chain = {
@@ -1592,9 +1656,66 @@ else:
     from langchain_core.retrievers import BaseRetriever
     from langchain_core.callbacks import CallbackManagerForRetrieverRun
     from typing import List
-    from base64 import b64decode
+    from base64 import b64decode, b64encode
     import pickle
-    
+    from PIL import Image
+    import io
+
+    # ===========================================================================
+    # 🖼️ IMAGE CONVERSION: Convert all images to JPEG for GPT-4 Vision
+    # ===========================================================================
+    def convert_image_to_jpeg_base64(image_base64_str):
+        """
+        Converte qualquer formato de imagem para JPEG (suportado por GPT-4 Vision).
+
+        Formatos não suportados: TIFF, BMP, ICO, etc.
+        Formatos suportados: PNG, JPEG, GIF, WEBP
+
+        Esta função garante que TODAS as imagens sejam JPEG válidas.
+        """
+        try:
+            # Decodificar base64 para bytes
+            image_bytes = b64decode(image_base64_str)
+
+            # Abrir imagem com PIL
+            img = Image.open(io.BytesIO(image_bytes))
+
+            # Converter para RGB (remove alpha channel se houver)
+            # Isso é necessário porque JPEG não suporta transparência
+            if img.mode in ('RGBA', 'LA', 'P'):
+                # Criar background branco
+                background = Image.new('RGB', img.size, (255, 255, 255))
+
+                # Converter P (palette) para RGBA primeiro
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+
+                # Colar imagem sobre background branco (preserva transparência)
+                if img.mode in ('RGBA', 'LA'):
+                    background.paste(img, mask=img.split()[-1])  # Usa alpha channel como máscara
+                else:
+                    background.paste(img)
+
+                img = background
+            elif img.mode != 'RGB':
+                # Outros modos (L, CMYK, etc.) → RGB
+                img = img.convert('RGB')
+
+            # Salvar como JPEG em buffer
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            jpeg_bytes = output.getvalue()
+
+            # Re-encodar para base64
+            jpeg_base64 = b64encode(jpeg_bytes).decode('utf-8')
+
+            return jpeg_base64, True
+
+        except Exception as e:
+            # Se conversão falhar, retornar None
+            print(f"      ⚠️  Erro ao converter imagem durante query: {str(e)[:100]}")
+            return None, False
+
     vectorstore = Chroma(
         collection_name="knowledge_base",
         embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),  # Modelo novo, melhor semântica
@@ -1780,14 +1901,21 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             "text": system_instruction.format(context=context, question=question)
         }]
 
+        # ✅ CONVERT IMAGES TO JPEG before sending to Vision API
         for image in docs["images"]:
-            prompt_content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{image}"}
-            })
+            # Convert to JPEG (handles TIFF, BMP, etc.)
+            jpeg_image, success = convert_image_to_jpeg_base64(image)
+            if success:
+                prompt_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{jpeg_image}"}
+                })
+            else:
+                # Skip images that failed to convert
+                print(f"⚠️  Skipping image that failed JPEG conversion")
 
         return ChatPromptTemplate.from_messages([HumanMessage(content=prompt_content)])
-    
+
     chain = {
         "context": retriever | RunnableLambda(parse_docs),
         "question": RunnablePassthrough(),
@@ -1798,7 +1926,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             | StrOutputParser()
         )
     )
-    
+
     # Chat loop
     while True:
         try:
