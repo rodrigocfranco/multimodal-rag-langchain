@@ -1512,6 +1512,43 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             import traceback
             return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
+    @app.route('/debug-retrieval', methods=['POST'])
+    def debug_retrieval():
+        """Debug: Teste o retrieval diretamente"""
+        try:
+            data = request.get_json()
+            query = data.get('question', 'cardiomiopatia hipertrófica')
+
+            # Forçar reload do retriever
+            fresh_retriever, num_docs = get_retriever_cached()
+
+            if not fresh_retriever:
+                return jsonify({"error": "Retriever não inicializado"}), 500
+
+            # Testar busca direta
+            results = fresh_retriever.invoke(query)
+
+            debug_info = {
+                "query": query,
+                "total_docs_in_store": num_docs,
+                "results_count": len(results),
+                "results": []
+            }
+
+            for i, doc in enumerate(results):
+                debug_info["results"].append({
+                    "index": i,
+                    "source": doc.metadata.get('source', 'N/A') if hasattr(doc, 'metadata') else 'N/A',
+                    "type": doc.metadata.get('type', 'N/A') if hasattr(doc, 'metadata') else 'N/A',
+                    "preview": (doc.page_content[:200] if hasattr(doc, 'page_content') else str(doc)[:200])
+                })
+
+            return jsonify(debug_info)
+
+        except Exception as e:
+            import traceback
+            return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
     @app.route('/manage', methods=['GET'])
     def manage():
         """UI de gerenciamento de documentos"""
