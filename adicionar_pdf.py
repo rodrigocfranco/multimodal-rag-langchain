@@ -9,6 +9,9 @@ import sys
 from dotenv import load_dotenv
 import time
 from document_manager import generate_pdf_id, check_duplicate
+from PIL import Image
+import io
+from base64 import b64decode, b64encode
 
 load_dotenv()
 
@@ -307,6 +310,63 @@ def infer_document_type(filename):
     return 'medical_article'
 
 
+# ===========================================================================
+# CONVERSÃO DE IMAGENS PARA FORMATO SUPORTADO
+# ===========================================================================
+
+def convert_image_to_jpeg_base64(image_base64_str):
+    """
+    Converte qualquer formato de imagem para JPEG (suportado por GPT-4 Vision).
+
+    Formatos não suportados: TIFF, BMP, ICO, etc.
+    Formatos suportados: PNG, JPEG, GIF, WEBP
+
+    Esta função garante que TODAS as imagens sejam JPEG válidas.
+    """
+    try:
+        # Decodificar base64 para bytes
+        image_bytes = b64decode(image_base64_str)
+
+        # Abrir imagem com PIL
+        img = Image.open(io.BytesIO(image_bytes))
+
+        # Converter para RGB (remove alpha channel se houver)
+        # Isso é necessário porque JPEG não suporta transparência
+        if img.mode in ('RGBA', 'LA', 'P'):
+            # Criar background branco
+            background = Image.new('RGB', img.size, (255, 255, 255))
+
+            # Converter P (palette) para RGBA primeiro
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+
+            # Colar imagem sobre background branco (preserva transparência)
+            if img.mode in ('RGBA', 'LA'):
+                background.paste(img, mask=img.split()[-1])  # Usa alpha channel como máscara
+            else:
+                background.paste(img)
+
+            img = background
+        elif img.mode != 'RGB':
+            # Outros modos (L, CMYK, etc.) → RGB
+            img = img.convert('RGB')
+
+        # Salvar como JPEG em buffer
+        output = io.BytesIO()
+        img.save(output, format='JPEG', quality=85, optimize=True)
+        jpeg_bytes = output.getvalue()
+
+        # Re-encodar para base64
+        jpeg_base64 = b64encode(jpeg_bytes).decode('utf-8')
+
+        return jpeg_base64, True
+
+    except Exception as e:
+        # Se conversão falhar, retornar None
+        print(f"      ⚠️  Erro ao converter imagem: {str(e)[:100]}")
+        return None, False
+
+
 # Extrair imagens base64 dos chunks
 def get_images_base64(chunks):
     """
@@ -315,6 +375,8 @@ def get_images_base64(chunks):
     2. Imagens dentro de CompositeElement.metadata.orig_elements
 
     Filtra imagens pequenas (<5KB) que geralmente são ícones/decoração
+
+    ✅ CONVERTE TODAS AS IMAGENS PARA JPEG (formato suportado por GPT-4 Vision)
     """
     images_b64 = []
     seen_hashes = set()  # Deduplicação
@@ -335,15 +397,21 @@ def get_images_base64(chunks):
             if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'image_base64'):
                 img = chunk.metadata.image_base64
                 if img and len(img) > 100:
-                    size_kb = len(img) / 1024
+                    # ✅ CONVERT TO JPEG BEFORE SIZE CHECK
+                    jpeg_img, success = convert_image_to_jpeg_base64(img)
+                    if not success:
+                        filtered_count += 1
+                        continue
+
+                    size_kb = len(jpeg_img) / 1024
 
                     # Filtrar imagens muito pequenas
                     if size_kb >= MIN_IMAGE_SIZE_KB:
                         # Deduplicar por hash
-                        img_hash = hash(img[:1000])
+                        img_hash = hash(jpeg_img[:1000])
                         if img_hash not in seen_hashes:
                             seen_hashes.add(img_hash)
-                            images_b64.append(img)
+                            images_b64.append(jpeg_img)  # ✅ Use converted JPEG
                     else:
                         filtered_count += 1
 
@@ -358,15 +426,21 @@ def get_images_base64(chunks):
                             if hasattr(el, 'metadata') and hasattr(el.metadata, 'image_base64'):
                                 img = el.metadata.image_base64
                                 if img and len(img) > 100:
-                                    size_kb = len(img) / 1024
+                                    # ✅ CONVERT TO JPEG BEFORE SIZE CHECK
+                                    jpeg_img, success = convert_image_to_jpeg_base64(img)
+                                    if not success:
+                                        filtered_count += 1
+                                        continue
+
+                                    size_kb = len(jpeg_img) / 1024
 
                                     # Filtrar imagens muito pequenas
                                     if size_kb >= MIN_IMAGE_SIZE_KB:
                                         # Deduplicar por hash
-                                        img_hash = hash(img[:1000])
+                                        img_hash = hash(jpeg_img[:1000])
                                         if img_hash not in seen_hashes:
                                             seen_hashes.add(img_hash)
-                                            images_b64.append(img)
+                                            images_b64.append(jpeg_img)  # ✅ Use converted JPEG
                                     else:
                                         filtered_count += 1
 
@@ -448,6 +522,13 @@ def extract_table_with_vision(table_element, pdf_filename):
     image_b64 = table_element.metadata.image_base64
     if not image_b64 or len(image_b64) < 100:
         return None, False, {"error": "Image too small"}
+
+    # ✅ CONVERT TABLE IMAGE TO JPEG (fix unsupported formats)
+    jpeg_image_b64, success = convert_image_to_jpeg_base64(image_b64)
+    if not success:
+        return None, False, {"error": "Failed to convert image to JPEG"}
+
+    image_b64 = jpeg_image_b64  # Use converted image
 
     page_num = table_element.metadata.page_number if hasattr(table_element.metadata, 'page_number') else '?'
 
