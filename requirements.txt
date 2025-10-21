@@ -25,6 +25,11 @@ cohere
 # BM25 for Hybrid Search (keyword-based retrieval)
 rank-bm25
 
+# Metadata Enrichment (P0-3)
+keybert
+sentence-transformers
+scikit-learn
+
 # API REST
 flask
 flask-cors
