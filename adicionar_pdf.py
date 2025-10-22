@@ -394,11 +394,10 @@ def get_images_base64(chunks):
     total_found = 0
 
     # Filtro: imagens muito pequenas geralmente são ícones/decoração
-    # 10KB threshold: Balance entre filtrar ícones e manter fluxogramas/diagramas
-    # Imagens <10KB: tipicamente ícones, logos, decorações
-    # Imagens 10-30KB: fluxogramas, diagramas vetoriais, gráficos importantes
-    # Imagens >30KB: fotos, screenshots, imagens complexas
-    MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "10"))
+    # 30KB threshold: Balance entre filtrar ícones e manter fluxogramas/diagramas importantes
+    # Imagens <30KB: tipicamente ícones, logos, decorações, elementos gráficos pequenos
+    # Imagens >30KB: fluxogramas, diagramas, gráficos importantes, fotos, screenshots
+    MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "30"))
 
     for chunk in chunks:
         chunk_type = str(type(chunk))
@@ -473,7 +472,7 @@ if os.getenv("DEBUG_IMAGES"):
 
 print(f"   ✓ {len(texts)} textos, {len(tables)} tabelas, {len(images)} imagens")
 if filtered_count > 0:
-    min_size_threshold = float(os.getenv("MIN_IMAGE_SIZE_KB", "10"))
+    min_size_threshold = float(os.getenv("MIN_IMAGE_SIZE_KB", "30"))
     print(f"      (detectadas: {total_images_found}, filtradas: {filtered_count} imagens pequenas <{min_size_threshold:.0f}KB)")
 print()
 
