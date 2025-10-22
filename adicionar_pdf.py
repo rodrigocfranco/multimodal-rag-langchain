@@ -902,6 +902,26 @@ if tables:
 
     print(f"   ✓ {len(contextualized_tables)} tabelas contextualizadas")
 
+# Contextualizar imagens
+contextualized_images = []
+if image_summaries:
+    print(f"   Contextualizando {len(image_summaries)} imagens...")
+    for i, summary in enumerate(image_summaries):
+        # Para imagens, não há section heading detectável, usar None
+        contextualized = add_contextual_prefix(
+            chunk_text=summary,  # Descrição da imagem gerada por GPT-4o
+            chunk_index=i,
+            chunk_type="image",
+            pdf_metadata={"filename": pdf_filename, "document_type": document_type},
+            section_name=None  # Imagens geralmente não têm seção
+        )
+
+        contextualized_images.append(contextualized)
+        print(f"   Imagens: {i+1}/{len(image_summaries)}", end="\r")
+        time.sleep(0.3)
+
+    print(f"   ✓ {len(contextualized_images)} imagens contextualizadas")
+
 print()  # Linha em branco
 
 # ===========================================================================
@@ -1088,8 +1108,12 @@ for i, summary in enumerate(image_summaries):
     doc_id = str(uuid.uuid4())
     chunk_ids.append(doc_id)
 
+    # ✅ CONTEXTUAL RETRIEVAL: Usar imagem contextualizada para embedding
+    # Isso melhora retrieval de imagens médicas em ~49% segundo Anthropic
+    contextualized_chunk = contextualized_images[i] if i < len(contextualized_images) else summary
+
     doc = Document(
-        page_content=summary,
+        page_content=contextualized_chunk,  # ✅ Usar versão contextualizada
         metadata={
             "doc_id": doc_id,
             "pdf_id": pdf_id,  # ✅ ID do PDF
@@ -1100,10 +1124,12 @@ for i, summary in enumerate(image_summaries):
             "uploaded_at": uploaded_at,
             "section": None,                 # Imagens geralmente não têm seção detectável
             "document_type": document_type,  # ✅ NOVO: Tipo de documento
+            # ✅ NOVO: Adicionar summary original como metadata (útil para debug)
+            "summary": summary[:500],  # Primeiros 500 chars do summary original
         }
     )
-    
-    # Imagens base64 não têm metadata, só salvar
+
+    # Salvar imagem original no docstore (base64)
     retriever.vectorstore.add_documents([doc])
     retriever.docstore.mset([(doc_id, images[i])])
 
