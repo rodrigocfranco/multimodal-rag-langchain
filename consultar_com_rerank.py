@@ -132,14 +132,136 @@ if modo_api:
         search_kwargs={"k": 30}  # ✅ OTIMIZADO: Aumentado para 30 para capturar info dispersa
     )
 
-    # Wrapper para converter objetos Unstructured em Documents
+    # ===========================================================================
+    # 🖼️ FIX: HYBRID RETRIEVAL COM BOOST PARA IMAGENS
+    # ===========================================================================
+    import re
+
+    def detect_image_query(question):
+        """
+        Detecta se a query do usuário está pedindo informações visuais.
+
+        Returns:
+            (bool, list): (is_image_query, keywords_found)
+        """
+        image_patterns = [
+            r'\bfigura\s+\d+\b',  # "figura 1", "figura 2"
+            r'\bfig\.?\s*\d+\b',   # "fig. 1", "fig 2"
+            r'\btabela\s+\d+\b',   # "tabela 1"
+            r'\bfluxograma\b',
+            r'\balgorit?mo\b',
+            r'\bdiagrama\b',
+            r'\bgr[aá]fico\b',
+            r'\bimagem\b',
+            r'\bilustra[çc][ãa]o\b',
+            r'\bexplique\s+(a|o)\s+(figura|imagem|fluxograma|algoritmo|diagrama)\b',
+            r'\bdescreva\s+(a|o)\s+(figura|imagem|fluxograma)\b',
+            r'\bo\s+que\s+(mostra|diz|apresenta)\s+(a|o)\s+(figura|imagem)\b',
+        ]
+
+        keywords_found = []
+        for pattern in image_patterns:
+            match = re.search(pattern, question.lower())
+            if match:
+                keywords_found.append(match.group(0))
+
+        return len(keywords_found) > 0, keywords_found
+
+
+    def force_include_images(question, base_results, vectorstore_instance, max_images=3):
+        """
+        Força inclusão de imagens relevantes quando query é sobre conteúdo visual.
+
+        Args:
+            question: Query do usuário
+            base_results: Resultados do retrieval normal
+            vectorstore_instance: ChromaDB vectorstore
+            max_images: Máximo de imagens a incluir (default: 3)
+
+        Returns:
+            list: Resultados combinados (base_results + imagens forçadas)
+        """
+        is_image_query, keywords = detect_image_query(question)
+
+        if not is_image_query:
+            return base_results  # Não modifica se não for query sobre imagens
+
+        print(f"   🖼️ Query sobre imagens detectada! Keywords: {keywords}")
+
+        # Buscar DIRETAMENTE por imagens (filtro type='image')
+        try:
+            # Tentar múltiplas estratégias de busca
+            image_queries = [
+                question,  # Query original
+                " ".join(keywords) if keywords else "figura",  # Keywords extraídas
+                "figura fluxograma algoritmo diagrama",  # Genérica
+            ]
+
+            found_images = []
+            seen_doc_ids = set()
+
+            for img_query in image_queries:
+                try:
+                    images = vectorstore_instance.similarity_search(
+                        img_query,
+                        k=20,  # Buscar mais para aumentar chances
+                        filter={"type": "image"}
+                    )
+
+                    for img in images:
+                        doc_id = img.metadata.get('doc_id')
+                        if doc_id and doc_id not in seen_doc_ids:
+                            found_images.append(img)
+                            seen_doc_ids.add(doc_id)
+
+                            if len(found_images) >= max_images:
+                                break
+
+                except Exception as e:
+                    print(f"      ⚠️ Erro na busca com filtro: {str(e)[:100]}")
+                    continue
+
+                if len(found_images) >= max_images:
+                    break
+
+            if found_images:
+                print(f"   ✓ Forçando inclusão de {len(found_images)} imagens")
+
+                # IMPORTANTE: Adicionar imagens NO INÍCIO dos resultados
+                # Isso garante que passarão pelo rerank com prioridade
+                combined_results = found_images + base_results
+
+                # Deduplicate por doc_id
+                seen = set()
+                unique_results = []
+                for doc in combined_results:
+                    doc_id = doc.metadata.get('doc_id')
+                    if doc_id not in seen:
+                        seen.add(doc_id)
+                        unique_results.append(doc)
+
+                return unique_results[:40]  # Limitar a 40 para não sobrecarregar rerank
+
+            else:
+                print(f"   ⚠️ Nenhuma imagem encontrada mesmo com filtro!")
+                return base_results
+
+        except Exception as e:
+            print(f"   ✗ Erro ao forçar inclusão de imagens: {str(e)[:200]}")
+            return base_results
+
+    # Wrapper para converter objetos Unstructured em Documents COM BOOST DE IMAGENS
     class DocumentConverter(BaseRetriever):
         retriever: MultiVectorRetriever
-        
+        vectorstore_ref: any  # Referência ao vectorstore para busca direta
+
         def _get_relevant_documents(
             self, query: str, *, run_manager: CallbackManagerForRetrieverRun
         ) -> List[Document]:
+            # 1. Retrieval normal
             docs = self.retriever.invoke(query)
+
+            # 2. Converter para Documents
             converted = []
             for doc in docs:
                 # Converter para Document do LangChain
@@ -155,7 +277,7 @@ if modo_api:
                         else:
                             # ElementMetadata → dict
                             metadata = doc.metadata.to_dict() if hasattr(doc.metadata, 'to_dict') else {}
-                    
+
                     converted.append(Document(
                         page_content=doc.text,
                         metadata=metadata
@@ -164,10 +286,22 @@ if modo_api:
                     converted.append(Document(page_content=doc, metadata={}))
                 else:
                     converted.append(Document(page_content=str(doc), metadata={}))
-            return converted
-    
-    # Wrapper do retriever para converter objetos
-    wrapped_retriever = DocumentConverter(retriever=base_retriever)
+
+            # 3. 🖼️ FORÇA INCLUSÃO DE IMAGENS se query for sobre imagens
+            enhanced_results = force_include_images(
+                question=query,
+                base_results=converted,
+                vectorstore_instance=self.vectorstore_ref,
+                max_images=3
+            )
+
+            return enhanced_results
+
+    # Wrapper do retriever para converter objetos COM BOOST DE IMAGENS
+    wrapped_retriever = DocumentConverter(
+        retriever=base_retriever,
+        vectorstore_ref=vectorstore  # ← Passar vectorstore para busca direta
+    )
 
     # ===========================================================================
     # 🚀 HYBRID SEARCH: BM25 + VECTOR (ROBUST SOLUTION)
@@ -1751,7 +1885,7 @@ else:
     if os.path.exists(docstore_path):
         with open(docstore_path, 'rb') as f:
             store.store = pickle.load(f)
-    
+
     base_retriever = MultiVectorRetriever(
         vectorstore=vectorstore,
         docstore=store,
@@ -1759,14 +1893,114 @@ else:
         search_kwargs={"k": 30}  # ✅ OTIMIZADO: Aumentado para 30 para capturar info dispersa
     )
 
-    # Wrapper para converter objetos Unstructured em Documents
+    # ===========================================================================
+    # 🖼️ FIX: HYBRID RETRIEVAL COM BOOST PARA IMAGENS (MODO TERMINAL)
+    # ===========================================================================
+    import re
+
+    def detect_image_query_terminal(question):
+        """Detecta se a query do usuário está pedindo informações visuais."""
+        image_patterns = [
+            r'\bfigura\s+\d+\b',  # "figura 1", "figura 2"
+            r'\bfig\.?\s*\d+\b',   # "fig. 1", "fig 2"
+            r'\btabela\s+\d+\b',   # "tabela 1"
+            r'\bfluxograma\b',
+            r'\balgorit?mo\b',
+            r'\bdiagrama\b',
+            r'\bgr[aá]fico\b',
+            r'\bimagem\b',
+            r'\bilustra[çc][ãa]o\b',
+            r'\bexplique\s+(a|o)\s+(figura|imagem|fluxograma|algoritmo|diagrama)\b',
+            r'\bdescreva\s+(a|o)\s+(figura|imagem|fluxograma)\b',
+            r'\bo\s+que\s+(mostra|diz|apresenta)\s+(a|o)\s+(figura|imagem)\b',
+        ]
+
+        keywords_found = []
+        for pattern in image_patterns:
+            match = re.search(pattern, question.lower())
+            if match:
+                keywords_found.append(match.group(0))
+
+        return len(keywords_found) > 0, keywords_found
+
+
+    def force_include_images_terminal(question, base_results, vectorstore_instance, max_images=3):
+        """Força inclusão de imagens relevantes quando query é sobre conteúdo visual."""
+        is_image_query, keywords = detect_image_query_terminal(question)
+
+        if not is_image_query:
+            return base_results
+
+        print(f"   🖼️ Query sobre imagens detectada! Keywords: {keywords}")
+
+        try:
+            image_queries = [
+                question,
+                " ".join(keywords) if keywords else "figura",
+                "figura fluxograma algoritmo diagrama",
+            ]
+
+            found_images = []
+            seen_doc_ids = set()
+
+            for img_query in image_queries:
+                try:
+                    images = vectorstore_instance.similarity_search(
+                        img_query,
+                        k=20,
+                        filter={"type": "image"}
+                    )
+
+                    for img in images:
+                        doc_id = img.metadata.get('doc_id')
+                        if doc_id and doc_id not in seen_doc_ids:
+                            found_images.append(img)
+                            seen_doc_ids.add(doc_id)
+
+                            if len(found_images) >= max_images:
+                                break
+
+                except Exception as e:
+                    print(f"      ⚠️ Erro na busca com filtro: {str(e)[:100]}")
+                    continue
+
+                if len(found_images) >= max_images:
+                    break
+
+            if found_images:
+                print(f"   ✓ Forçando inclusão de {len(found_images)} imagens")
+                combined_results = found_images + base_results
+
+                seen = set()
+                unique_results = []
+                for doc in combined_results:
+                    doc_id = doc.metadata.get('doc_id')
+                    if doc_id not in seen:
+                        seen.add(doc_id)
+                        unique_results.append(doc)
+
+                return unique_results[:40]
+
+            else:
+                print(f"   ⚠️ Nenhuma imagem encontrada mesmo com filtro!")
+                return base_results
+
+        except Exception as e:
+            print(f"   ✗ Erro ao forçar inclusão de imagens: {str(e)[:200]}")
+            return base_results
+
+    # Wrapper para converter objetos Unstructured em Documents COM BOOST DE IMAGENS
     class DocumentConverter(BaseRetriever):
         retriever: MultiVectorRetriever
+        vectorstore_ref: any
 
         def _get_relevant_documents(
             self, query: str, *, run_manager: CallbackManagerForRetrieverRun
         ) -> List[Document]:
+            # 1. Retrieval normal
             docs = self.retriever.invoke(query)
+
+            # 2. Converter para Documents
             converted = []
             for doc in docs:
                 # Converter para Document do LangChain
@@ -1791,10 +2025,22 @@ else:
                     converted.append(Document(page_content=doc, metadata={}))
                 else:
                     converted.append(Document(page_content=str(doc), metadata={}))
-            return converted
 
-    # Wrapper do retriever para converter objetos
-    wrapped_retriever = DocumentConverter(retriever=base_retriever)
+            # 3. 🖼️ FORÇA INCLUSÃO DE IMAGENS se query for sobre imagens
+            enhanced_results = force_include_images_terminal(
+                question=query,
+                base_results=converted,
+                vectorstore_instance=self.vectorstore_ref,
+                max_images=3
+            )
+
+            return enhanced_results
+
+    # Wrapper do retriever para converter objetos COM BOOST DE IMAGENS
+    wrapped_retriever = DocumentConverter(
+        retriever=base_retriever,
+        vectorstore_ref=vectorstore
+    )
 
     # 🔥 RERANKER COHERE
     print("🔥 Inicializando Cohere Reranker...")
