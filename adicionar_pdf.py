@@ -922,6 +922,30 @@ if image_summaries:
 
     print(f"   ✓ {len(contextualized_images)} imagens contextualizadas")
 
+# ✅ METADATA ENRICHMENT: Pré-processar TODOS os metadados ANTES do loop de vectorstore
+# Isso evita travamento por rodar KeyBERT dentro do loop
+print(f"\n2️⃣.6 Enriquecendo metadados (KeyBERT + Medical NER + Numerical)...")
+
+enriched_texts_metadata = []
+if texts:
+    print(f"   Enriquecendo {len(texts)} textos...")
+    for i, text in enumerate(texts):
+        original_text = text.text if hasattr(text, 'text') else str(text)
+        enriched = enricher.enrich(original_text)
+        enriched_texts_metadata.append(enriched)
+        print(f"   Textos: {i+1}/{len(texts)}", end="\r")
+    print(f"   ✓ {len(enriched_texts_metadata)} textos enriquecidos")
+
+enriched_tables_metadata = []
+if tables:
+    print(f"   Enriquecendo {len(tables)} tabelas...")
+    for i, table in enumerate(tables):
+        original_table_text = table.text if hasattr(table, 'text') else str(table)
+        enriched = enricher.enrich(original_table_text)
+        enriched_tables_metadata.append(enriched)
+        print(f"   Tabelas: {i+1}/{len(tables)}", end="\r")
+    print(f"   ✓ {len(enriched_tables_metadata)} tabelas enriquecidas")
+
 print()  # Linha em branco
 
 # ===========================================================================
@@ -976,9 +1000,8 @@ for i, summary in enumerate(text_summaries):
     # Isso melhora retrieval em 49% segundo Anthropic
     contextualized_chunk = contextualized_texts[i]
 
-    # ✅ METADATA ENRICHMENT: Extrair keywords, entidades médicas e medições
-    original_text = texts[i].text if hasattr(texts[i], 'text') else str(texts[i])
-    enriched_metadata = enricher.enrich(original_text)
+    # ✅ METADATA ENRICHMENT: Usar metadados pré-processados (muito mais rápido!)
+    enriched_metadata = enriched_texts_metadata[i] if i < len(enriched_texts_metadata) else {}
 
     # Print progresso
     print(f"   Textos: {i+1}/{len(text_summaries)}", end="\r")
@@ -1052,9 +1075,8 @@ for i, summary in enumerate(table_summaries):
     # ✅ CONTEXTUAL RETRIEVAL: Usar tabela contextualizada
     contextualized_table = contextualized_tables[i]
 
-    # ✅ METADATA ENRICHMENT: Extrair keywords, entidades médicas e medições (tabelas são ricas em dados!)
-    original_table_text = tables[i].text if hasattr(tables[i], 'text') else str(tables[i])
-    enriched_table_metadata = enricher.enrich(original_table_text)
+    # ✅ METADATA ENRICHMENT: Usar metadados pré-processados (muito mais rápido!)
+    enriched_table_metadata = enriched_tables_metadata[i] if i < len(enriched_tables_metadata) else {}
 
     # Print progresso
     print(f"   Tabelas: {i+1}/{len(table_summaries)}", end="\r")
