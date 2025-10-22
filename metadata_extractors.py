@@ -39,9 +39,10 @@ class KeywordExtractor:
         self,
         text: str,
         top_n: int = 8,
-        use_maxsum: bool = True,
-        diversity: float = 0.5,
-        max_chars: int = 3000  # NOVO: Limite para evitar lentidão
+        use_maxsum: bool = False,  # DESABILITADO: MaxSum é muito lento
+        diversity: float = 0.3,     # Reduzido para velocidade
+        max_chars: int = 1500,      # Reduzido de 3000 para 1500
+        timeout_seconds: int = 5    # NOVO: Timeout de 5s
     ) -> List[str]:
         """
         Extrai keywords semanticamente relevantes do texto
@@ -49,9 +50,10 @@ class KeywordExtractor:
         Args:
             text: Texto para extrair keywords
             top_n: Número de keywords a extrair (padrão: 8)
-            use_maxsum: Usar MaxSum para diversificar keywords (padrão: True)
-            diversity: Nível de diversidade 0-1 (padrão: 0.5)
-            max_chars: Máximo de caracteres a processar (padrão: 3000)
+            use_maxsum: Usar MaxSum para diversificar keywords (padrão: False - LENTO!)
+            diversity: Nível de diversidade 0-1 (padrão: 0.3)
+            max_chars: Máximo de caracteres a processar (padrão: 1500)
+            timeout_seconds: Timeout em segundos (padrão: 5s)
 
         Returns:
             Lista de keywords ordenadas por relevância
@@ -66,29 +68,68 @@ class KeywordExtractor:
             return []
 
         # ⚡ OTIMIZAÇÃO: Limitar tamanho do texto para evitar lentidão
-        # KeyBERT fica MUITO lento com textos grandes (>3000 chars)
-        # Usar apenas os primeiros N caracteres (geralmente contêm as keywords principais)
+        # KeyBERT fica MUITO lento com textos grandes
+        # Reduzido para 1500 chars (vs 3000) para melhor performance
         if len(text) > max_chars:
             text = text[:max_chars]
 
         try:
-            # Extração com KeyBERT
-            keywords = self.kw_model.extract_keywords(
-                text,
-                keyphrase_ngram_range=(1, 2),  # Unigrams e bigrams
-                stop_words=None,  # Não usar stop words (médico tem termos específicos)
-                top_n=top_n,
-                use_maxsum=use_maxsum,
-                nr_candidates=20,
-                diversity=diversity
-            )
+            import signal
 
-            # Retornar apenas as strings (sem scores)
-            return [kw[0] for kw in keywords]
+            # ⚡ TIMEOUT: Se KeyBERT demorar >5s, usar fallback regex
+            def timeout_handler(signum, frame):
+                raise TimeoutError("KeyBERT timeout")
+
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(timeout_seconds)
+
+            try:
+                # Extração com KeyBERT (modo rápido - sem MaxSum)
+                keywords = self.kw_model.extract_keywords(
+                    text,
+                    keyphrase_ngram_range=(1, 2),  # Unigrams e bigrams
+                    stop_words=None,
+                    top_n=top_n,
+                    use_maxsum=use_maxsum,  # False = mais rápido
+                    nr_candidates=10,       # Reduzido de 20 para 10
+                    diversity=diversity
+                )
+
+                signal.alarm(0)  # Cancelar alarme
+
+                # Retornar apenas as strings (sem scores)
+                return [kw[0] for kw in keywords]
+
+            except TimeoutError:
+                signal.alarm(0)
+                # Fallback: extração simples por regex (instantâneo)
+                return self._extract_keywords_regex_fallback(text, top_n)
 
         except Exception as e:
             print(f"      ⚠️  Erro ao extrair keywords: {str(e)[:100]}")
-            return []
+            return self._extract_keywords_regex_fallback(text, top_n)
+
+    def _extract_keywords_regex_fallback(self, text: str, top_n: int = 8) -> List[str]:
+        """
+        Fallback rápido: extração de keywords por regex (termos médicos comuns)
+        """
+        import re
+        from collections import Counter
+
+        # Padrões de termos médicos comuns em português
+        medical_terms = re.findall(
+            r'\b(?:diabetes|hipertensão|glicemia|insulina|metformina|HbA1c|'
+            r'creatinina|pressão arterial|colesterol|triglicerídeos|'
+            r'doença renal|cardiovascular|nefropatia|retinopatia|'
+            r'tratamento|diagnóstico|prevenção|controle|manejo)\b',
+            text.lower()
+        )
+
+        # Contar frequência
+        counter = Counter(medical_terms)
+
+        # Retornar top N mais frequentes
+        return [term for term, _ in counter.most_common(top_n)]
 
 
 # ==============================================================================
