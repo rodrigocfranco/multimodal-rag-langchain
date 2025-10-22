@@ -977,13 +977,14 @@ for i, summary in enumerate(text_summaries):
             "summary": summary,              # ✅ Resumo separado
 
             # ✅ METADADOS ENRIQUECIDOS (KeyBERT + Medical NER + Numerical)
-            "keywords": enriched_metadata.get("keywords", []),
+            # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
+            # Convertemos listas para strings separadas por vírgula
             "keywords_str": enriched_metadata.get("keywords_str", ""),
-            "entities_diseases": enriched_metadata.get("entities_diseases", []),
-            "entities_medications": enriched_metadata.get("entities_medications", []),
-            "entities_procedures": enriched_metadata.get("entities_procedures", []),
+            "entities_diseases_str": ", ".join(enriched_metadata.get("entities_diseases", [])),
+            "entities_medications_str": ", ".join(enriched_metadata.get("entities_medications", [])),
+            "entities_procedures_str": ", ".join(enriched_metadata.get("entities_procedures", [])),
             "has_medical_entities": enriched_metadata.get("has_medical_entities", False),
-            "measurements": enriched_metadata.get("measurements", []),
+            "measurements_count": len(enriched_metadata.get("measurements", [])),
             "has_measurements": enriched_metadata.get("has_measurements", False),
         }
     )
@@ -1051,13 +1052,13 @@ for i, summary in enumerate(table_summaries):
             "summary": summary,              # ✅ Resumo separado
 
             # ✅ METADADOS ENRIQUECIDOS (tabelas são especialmente ricas!)
-            "keywords": enriched_table_metadata.get("keywords", []),
+            # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
             "keywords_str": enriched_table_metadata.get("keywords_str", ""),
-            "entities_diseases": enriched_table_metadata.get("entities_diseases", []),
-            "entities_medications": enriched_table_metadata.get("entities_medications", []),
-            "entities_procedures": enriched_table_metadata.get("entities_procedures", []),
+            "entities_diseases_str": ", ".join(enriched_table_metadata.get("entities_diseases", [])),
+            "entities_medications_str": ", ".join(enriched_table_metadata.get("entities_medications", [])),
+            "entities_procedures_str": ", ".join(enriched_table_metadata.get("entities_procedures", [])),
             "has_medical_entities": enriched_table_metadata.get("has_medical_entities", False),
-            "measurements": enriched_table_metadata.get("measurements", []),
+            "measurements_count": len(enriched_table_metadata.get("measurements", [])),
             "has_measurements": enriched_table_metadata.get("has_measurements", False),
         }
     )
