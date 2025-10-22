@@ -764,19 +764,39 @@ if images:
     
     prompt_img = ChatPromptTemplate.from_messages([
         ("user", [
-            {"type": "text", "text": "Describe this image:"},
+            {"type": "text", "text": """Describe this medical image in detail.
+
+IMPORTANT: Start your description with the image type and number if visible:
+- If it shows "Figura 1" or "Figure 1": Start with "FIGURA 1: ..."
+- If it shows "Figura 2" or "Figure 2": Start with "FIGURA 2: ..."
+- If it shows "Fluxograma 1": Start with "FLUXOGRAMA 1: ..."
+- If it shows "Tabela 1": Start with "TABELA 1: ..."
+- If no number is visible, identify the type: "FLUXOGRAMA: ...", "DIAGRAMA: ...", "GRÁFICO: ..."
+
+Then describe:
+1. What the image shows (flowchart, algorithm, diagram, table, graph, etc)
+2. Main elements and structure
+3. Key data or information
+4. Clinical context if applicable
+
+Be detailed and specific."""},
             {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,{image}"}},
         ])
     ])
     chain_img = prompt_img | ChatOpenAI(model="gpt-4o-mini") | StrOutputParser()
-    
+
     for i, img in enumerate(images):
         try:
             size_kb = len(img) / 1024
             if 1 < size_kb < 20000:
                 base64.b64decode(img[:100])
                 print(f"   Imagens: {i+1}/{len(images)} ({size_kb:.1f}KB)...", end="\r")
-                image_summaries.append(chain_img.invoke(img))
+                # Passar o número da imagem para ajudar na identificação
+                description = chain_img.invoke(img)
+                # Se GPT não incluiu número, adicionar referência
+                if not any(word in description[:50].upper() for word in ['FIGURA', 'FLUXOGRAMA', 'TABELA', 'GRÁFICO', 'DIAGRAMA']):
+                    description = f"[Imagem {i+1} do documento] {description}"
+                image_summaries.append(description)
                 time.sleep(0.8)
             else:
                 print(f"   Imagens: {i+1}/{len(images)} (ignorada: {size_kb:.1f}KB)", end="\r")
