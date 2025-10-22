@@ -190,7 +190,17 @@
         }
       } catch (error) {
         console.error('Upload error:', error);
-        showMessage('Erro: ' + error.message, 'error');
+
+        // Se já houver log visível (streaming), adicionar erro ao final
+        const existingLog = document.getElementById('progressLog');
+        if (existingLog) {
+          existingLog.textContent += '\n\n❌ ERRO DE CONEXÃO:\n' + error.message + '\n';
+          existingLog.textContent += '\nO processamento pode ter continuado no servidor. Verifique em /manage.\n';
+          existingLog.scrollTop = existingLog.scrollHeight;
+        } else {
+          // Mostrar erro simples se não houver log
+          showMessage('❌ ERRO: ' + error.message + '\n\nO processamento pode ter continuado no servidor. Verifique em /manage.', 'error');
+        }
       } finally {
         setLoading(false);
       }
@@ -233,10 +243,28 @@
     }
 
     async function handleStreamingUpload(endpoint, formData) {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData
-      });
+      // Criar AbortController para timeout manual (15 minutos)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15 * 60 * 1000);
+
+      let response;
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+          // Importante: keepalive para conexões longas
+          keepalive: true
+        });
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Timeout: Processamento levou mais de 15 minutos. Verifique os logs do servidor.');
+        }
+        throw new Error(`Erro de rede: ${fetchError.message}. O servidor pode estar processando em background.`);
+      }
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -250,22 +278,37 @@
 
       const progressLog = document.getElementById('progressLog');
       let buffer = '';
+      let lastActivity = Date.now();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // Monitorar atividade da stream
+      const activityChecker = setInterval(() => {
+        const inactiveSeconds = Math.floor((Date.now() - lastActivity) / 1000);
+        if (inactiveSeconds > 120) {
+          progressLog.textContent += `\n⚠️ Sem atividade por ${inactiveSeconds}s - processamento pode ter parado...\n`;
+          progressLog.scrollTop = progressLog.scrollHeight;
+        }
+      }, 10000);
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.substring(6);
-            progressLog.textContent += data + '\n';
-            progressLog.scrollTop = progressLog.scrollHeight;
+          lastActivity = Date.now();
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.substring(6);
+              progressLog.textContent += data + '\n';
+              progressLog.scrollTop = progressLog.scrollHeight;
+            }
           }
         }
+      } finally {
+        clearInterval(activityChecker);
       }
 
       // MANTER O LOG COMPLETO VISÍVEL + adicionar mensagem de status no final
