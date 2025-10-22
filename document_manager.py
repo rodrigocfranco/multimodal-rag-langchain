@@ -120,29 +120,52 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
             persist_directory=persist_directory
         )
 
-        # 2. Buscar todos chunks do PDF
-        # ChromaDB suporta filtro por metadata
-        try:
-            results = vectorstore.get(
-                where={"pdf_id": pdf_id}
-            )
-        except Exception as e:
-            # Se falhar, tentar buscar por source (fallback para PDFs antigos)
-            metadata_path = f"{persist_directory}/metadata.pkl"
-            if os.path.exists(metadata_path):
-                with open(metadata_path, 'rb') as f:
-                    metadata = pickle.load(f)
-                doc_info = metadata.get('documents', {}).get(pdf_id)
-                if doc_info:
-                    results = vectorstore.get(
-                        where={"source": doc_info['filename']}
-                    )
-                else:
-                    return {"status": "not_found", "deleted_chunks": 0, "error": "PDF não encontrado"}
-            else:
-                return {"status": "not_found", "deleted_chunks": 0, "error": "PDF não encontrado"}
+        # 2. Buscar filename do documento primeiro
+        metadata_path = f"{persist_directory}/metadata.pkl"
+        if not os.path.exists(metadata_path):
+            return {"status": "not_found", "deleted_chunks": 0, "error": "Metadata não encontrado"}
 
-        chunk_ids = results.get('ids', [])
+        with open(metadata_path, 'rb') as f:
+            metadata = pickle.load(f)
+
+        doc_info = metadata.get('documents', {}).get(pdf_id)
+        if not doc_info:
+            return {"status": "not_found", "deleted_chunks": 0, "error": "PDF não encontrado"}
+
+        filename = doc_info.get('filename')
+
+        # 3. Buscar chunks por MÚLTIPLOS critérios (garante deletar tudo)
+        all_chunk_ids = set()
+
+        # Estratégia 1: Buscar por pdf_id
+        try:
+            results = vectorstore.get(where={"pdf_id": pdf_id})
+            all_chunk_ids.update(results.get('ids', []))
+            print(f"   Encontrados {len(results.get('ids', []))} chunks por pdf_id")
+        except:
+            pass
+
+        # Estratégia 2: Buscar por source (fallback para documentos antigos)
+        try:
+            results = vectorstore.get(where={"source": filename})
+            all_chunk_ids.update(results.get('ids', []))
+            print(f"   Encontrados {len(results.get('ids', []))} chunks por source")
+        except:
+            pass
+
+        # Estratégia 3: Buscar TODOS e filtrar manualmente (último recurso)
+        if len(all_chunk_ids) == 0:
+            print(f"   ⚠️ Buscando todos chunks manualmente...")
+            try:
+                all_results = vectorstore.get(include=['metadatas'])
+                for i, meta in enumerate(all_results.get('metadatas', [])):
+                    if meta.get('pdf_id') == pdf_id or meta.get('source') == filename:
+                        all_chunk_ids.add(all_results['ids'][i])
+                print(f"   Encontrados {len(all_chunk_ids)} chunks por busca manual")
+            except Exception as e:
+                print(f"   ✗ Erro na busca manual: {str(e)}")
+
+        chunk_ids = list(all_chunk_ids)
 
         if not chunk_ids:
             return {"status": "not_found", "deleted_chunks": 0, "pdf_id": pdf_id, "error": "Nenhum chunk encontrado"}
@@ -163,21 +186,24 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
                 pickle.dump(docstore, f)
 
         # 5. Atualizar metadata.pkl
-        metadata_path = f"{persist_directory}/metadata.pkl"
-        if os.path.exists(metadata_path):
-            with open(metadata_path, 'rb') as f:
-                metadata = pickle.load(f)
+        if 'documents' in metadata and pdf_id in metadata['documents']:
+            del metadata['documents'][pdf_id]
 
-            if 'documents' in metadata and pdf_id in metadata['documents']:
-                del metadata['documents'][pdf_id]
+            with open(metadata_path, 'wb') as f:
+                pickle.dump(metadata, f)
 
-                with open(metadata_path, 'wb') as f:
-                    pickle.dump(metadata, f)
+        # 6. ✅ FORÇAR ATUALIZAÇÃO DO TIMESTAMP DO DOCSTORE
+        # Isso invalida o cache do retriever automaticamente
+        import time
+        if os.path.exists(docstore_path):
+            os.utime(docstore_path, None)  # Atualiza timestamp para "agora"
+            print(f"   ✓ Timestamp do docstore atualizado (força rebuild do cache)")
 
         return {
             "status": "success",
             "deleted_chunks": len(chunk_ids),
-            "pdf_id": pdf_id
+            "pdf_id": pdf_id,
+            "filename": filename
         }
 
     except Exception as e:
