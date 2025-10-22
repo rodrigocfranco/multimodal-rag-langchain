@@ -194,8 +194,13 @@ if modo_api:
             image_queries = [
                 question,  # Query original
                 " ".join(keywords) if keywords else "figura",  # Keywords extraídas
+                # Se pergunta sobre "figura 1", tentar também só "figura" (sem número)
+                re.sub(r'\s+\d+', '', question) if re.search(r'figura\s+\d+', question.lower()) else None,
                 "figura fluxograma algoritmo diagrama",  # Genérica
             ]
+
+            # Remover None da lista
+            image_queries = [q for q in image_queries if q]
 
             found_images = []
             seen_doc_ids = set()
@@ -1937,8 +1942,13 @@ else:
             image_queries = [
                 question,
                 " ".join(keywords) if keywords else "figura",
+                # Se pergunta sobre "figura 1", tentar também só "figura" (sem número)
+                re.sub(r'\s+\d+', '', question) if re.search(r'figura\s+\d+', question.lower()) else None,
                 "figura fluxograma algoritmo diagrama",
             ]
+
+            # Remover None da lista
+            image_queries = [q for q in image_queries if q]
 
             found_images = []
             seen_doc_ids = set()
