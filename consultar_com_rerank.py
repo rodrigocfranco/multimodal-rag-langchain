@@ -346,14 +346,18 @@ if modo_api:
             search_kwargs={"k": 30}
         )
 
-        # 4. Criar DocumentConverter para o novo retriever
+        # 4. Criar DocumentConverter COM BOOST DE IMAGENS para o novo retriever
         class FreshDocumentConverter(BaseRetriever):
             retriever: MultiVectorRetriever
+            vectorstore_ref: any  # Referência ao vectorstore para busca direta
 
             def _get_relevant_documents(
                 self, query: str, *, run_manager: CallbackManagerForRetrieverRun
             ) -> List[Document]:
+                # 1. Retrieval normal
                 docs = self.retriever.invoke(query)
+
+                # 2. Converter para Documents
                 converted = []
                 for doc in docs:
                     if hasattr(doc, 'page_content'):
@@ -374,9 +378,21 @@ if modo_api:
                         converted.append(Document(page_content=doc, metadata={}))
                     else:
                         converted.append(Document(page_content=str(doc), metadata={}))
-                return converted
 
-        fresh_wrapped_retriever = FreshDocumentConverter(retriever=fresh_base_retriever)
+                # 3. 🖼️ FORÇA INCLUSÃO DE IMAGENS se query for sobre imagens
+                enhanced_results = force_include_images(
+                    question=query,
+                    base_results=converted,
+                    vectorstore_instance=self.vectorstore_ref,
+                    max_images=3
+                )
+
+                return enhanced_results
+
+        fresh_wrapped_retriever = FreshDocumentConverter(
+            retriever=fresh_base_retriever,
+            vectorstore_ref=fresh_vectorstore  # ← Passar vectorstore atualizado
+        )
 
         # 3. Reconstruir BM25 com todos documentos atualizados
         all_docs_for_bm25 = []
