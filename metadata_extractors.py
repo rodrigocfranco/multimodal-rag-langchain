@@ -40,7 +40,8 @@ class KeywordExtractor:
         text: str,
         top_n: int = 8,
         use_maxsum: bool = True,
-        diversity: float = 0.5
+        diversity: float = 0.5,
+        max_chars: int = 3000  # NOVO: Limite para evitar lentidão
     ) -> List[str]:
         """
         Extrai keywords semanticamente relevantes do texto
@@ -50,6 +51,7 @@ class KeywordExtractor:
             top_n: Número de keywords a extrair (padrão: 8)
             use_maxsum: Usar MaxSum para diversificar keywords (padrão: True)
             diversity: Nível de diversidade 0-1 (padrão: 0.5)
+            max_chars: Máximo de caracteres a processar (padrão: 3000)
 
         Returns:
             Lista de keywords ordenadas por relevância
@@ -62,6 +64,12 @@ class KeywordExtractor:
         """
         if not text or len(text.strip()) < 20:
             return []
+
+        # ⚡ OTIMIZAÇÃO: Limitar tamanho do texto para evitar lentidão
+        # KeyBERT fica MUITO lento com textos grandes (>3000 chars)
+        # Usar apenas os primeiros N caracteres (geralmente contêm as keywords principais)
+        if len(text) > max_chars:
+            text = text[:max_chars]
 
         try:
             # Extração com KeyBERT
