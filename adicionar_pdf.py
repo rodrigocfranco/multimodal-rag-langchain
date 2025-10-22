@@ -473,7 +473,8 @@ if os.getenv("DEBUG_IMAGES"):
 
 print(f"   ✓ {len(texts)} textos, {len(tables)} tabelas, {len(images)} imagens")
 if filtered_count > 0:
-    print(f"      (detectadas: {total_images_found}, filtradas: {filtered_count} imagens pequenas <{MIN_IMAGE_SIZE_KB:.0f}KB)")
+    min_size_threshold = float(os.getenv("MIN_IMAGE_SIZE_KB", "10"))
+    print(f"      (detectadas: {total_images_found}, filtradas: {filtered_count} imagens pequenas <{min_size_threshold:.0f}KB)")
 print()
 
 # ===========================================================================
