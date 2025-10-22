@@ -1771,6 +1771,52 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
 
         return Response(generate(), mimetype='text/plain')
 
+    @app.route('/clear-cache', methods=['POST'])
+    def clear_cache():
+        """
+        🔄 FORÇA LIMPEZA DO CACHE E REBUILD DO RETRIEVER
+
+        Use quando:
+        - Deletar documentos pelo /manage
+        - Reprocessar PDFs com novas descrições
+        - Retriever está retornando documentos antigos
+        """
+        global _last_docstore_mtime, _cached_retriever
+
+        print("\n" + "=" * 60)
+        print("🗑️ LIMPANDO CACHE DO RETRIEVER")
+        print("=" * 60)
+
+        # Invalidar cache
+        _last_docstore_mtime = None
+        _cached_retriever = None
+
+        # Forçar rebuild
+        try:
+            print("🔄 Reconstruindo retriever...")
+            new_retriever, num_docs = rebuild_retriever()
+            _cached_retriever = new_retriever
+            _last_docstore_mtime = os.path.getmtime(f"{persist_directory}/docstore.pkl")
+
+            print(f"✅ Cache limpo e retriever reconstruído!")
+            print(f"   Total de documentos: {num_docs}")
+            print("=" * 60 + "\n")
+
+            return jsonify({
+                "success": True,
+                "message": "Cache limpo e retriever reconstruído",
+                "total_docs": num_docs
+            })
+
+        except Exception as e:
+            print(f"❌ Erro ao rebuild: {str(e)}")
+            print("=" * 60 + "\n")
+
+            return jsonify({
+                "success": False,
+                "error": str(e)
+            }), 500
+
     print("=" * 60)
     print("🌐 API COM RERANKER rodando em http://localhost:5001")
     print("=" * 60)
@@ -1782,6 +1828,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
     print("  GET  /chat    → Chat UI")
     print("  POST /upload  → Enviar PDF (multipart)")
     print("  POST /query   → Fazer pergunta (com rerank)")
+    print("  POST /clear-cache → Limpar cache do retriever (use após deletar docs)")
     print("\n💡 Teste no navegador: http://localhost:5001/ui")
     print("\n⚠️  Porta mudada de 5000 → 5001 (5000 usada pelo AirPlay)")
     print("\n" + "=" * 60 + "\n")
