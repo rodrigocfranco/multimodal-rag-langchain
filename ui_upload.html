@@ -207,10 +207,28 @@
       const result = await response.json();
 
       if (response.ok) {
-        showMessage('Sucesso! ' + (result.message || 'PDF processado e adicionado ao knowledge base.'), 'success');
+        // Mostrar mensagem de sucesso + detalhes se disponíveis
+        let message = '✅ SUCESSO!\n\n' + (result.message || 'PDF processado e adicionado ao knowledge base.');
+        if (result.details) {
+          message += '\n\nDetalhes:\n' + JSON.stringify(result.details, null, 2);
+        }
+        output.className = 'show success';
+        output.innerHTML = '<div class="progress">' + message + '</div>';
         form.reset();
       } else {
-        showMessage('Erro: ' + (result.error || 'Falha ao processar o arquivo.'), 'error');
+        // Mostrar erro detalhado + traceback se disponível
+        let errorMsg = '❌ ERRO DURANTE O PROCESSAMENTO\n\n';
+        errorMsg += 'Mensagem: ' + (result.error || 'Falha ao processar o arquivo.') + '\n';
+
+        if (result.details) {
+          errorMsg += '\nDetalhes:\n' + result.details;
+        }
+        if (result.traceback) {
+          errorMsg += '\n\n--- TRACEBACK COMPLETO ---\n' + result.traceback;
+        }
+
+        output.className = 'show error';
+        output.innerHTML = '<div class="progress">' + errorMsg + '</div>';
       }
     }
 
@@ -250,15 +268,37 @@
         }
       }
 
+      // MANTER O LOG COMPLETO VISÍVEL + adicionar mensagem de status no final
       const finalText = progressLog.textContent;
+      const statusDiv = document.createElement('div');
+      statusDiv.style.marginTop = '16px';
+      statusDiv.style.padding = '12px';
+      statusDiv.style.borderRadius = '4px';
+      statusDiv.style.fontWeight = 'bold';
+
       if (finalText.includes('PDF processado com sucesso')) {
-        showMessage('PDF processado com sucesso!', 'success');
+        statusDiv.style.background = '#d4edda';
+        statusDiv.style.color = '#155724';
+        statusDiv.style.border = '2px solid #28a745';
+        statusDiv.textContent = '✅ PDF PROCESSADO COM SUCESSO!';
+        output.className = 'show success';
         form.reset();
       } else if (finalText.includes('Erro')) {
-        showMessage('Erro durante o processamento. Veja os detalhes acima.', 'error');
+        statusDiv.style.background = '#f8d7da';
+        statusDiv.style.color = '#721c24';
+        statusDiv.style.border = '2px solid #dc3545';
+        statusDiv.textContent = '❌ ERRO DURANTE O PROCESSAMENTO - Veja detalhes no log acima';
+        output.className = 'show error';
       } else {
-        showMessage('Processamento concluído.', 'info');
+        statusDiv.style.background = '#d1ecf1';
+        statusDiv.style.color = '#0c5460';
+        statusDiv.style.border = '2px solid #17a2b8';
+        statusDiv.textContent = 'ℹ️ PROCESSAMENTO CONCLUÍDO';
+        output.className = 'show info';
       }
+
+      // Adicionar status ao final do log (sem apagar o log)
+      output.appendChild(statusDiv);
     }
 
     uploadBtn.addEventListener('click', () => uploadPDF('/upload', false));
