@@ -959,6 +959,7 @@ retriever = MultiVectorRetriever(
 
 # Adicionar com metadados
 chunk_ids = []  # Para tracking
+print(f"   Adicionando {len(text_summaries)} textos ao vectorstore...")
 for i, summary in enumerate(text_summaries):
     doc_id = str(uuid.uuid4())
     chunk_ids.append(doc_id)
@@ -978,6 +979,9 @@ for i, summary in enumerate(text_summaries):
     # ✅ METADATA ENRICHMENT: Extrair keywords, entidades médicas e medições
     original_text = texts[i].text if hasattr(texts[i], 'text') else str(texts[i])
     enriched_metadata = enricher.enrich(original_text)
+
+    # Print progresso
+    print(f"   Textos: {i+1}/{len(text_summaries)}", end="\r")
 
     # Combined content: contexto + resumo + texto original
     combined_content = f"{contextualized_chunk}\n\n[RESUMO]\n{summary}"
@@ -1030,6 +1034,9 @@ for i, summary in enumerate(text_summaries):
     retriever.vectorstore.add_documents([doc])
     retriever.docstore.mset([(doc_id, original)])
 
+print(f"   ✓ {len(text_summaries)} textos adicionados")
+
+print(f"   Adicionando {len(table_summaries)} tabelas ao vectorstore...")
 for i, summary in enumerate(table_summaries):
     doc_id = str(uuid.uuid4())
     chunk_ids.append(doc_id)
@@ -1048,6 +1055,9 @@ for i, summary in enumerate(table_summaries):
     # ✅ METADATA ENRICHMENT: Extrair keywords, entidades médicas e medições (tabelas são ricas em dados!)
     original_table_text = tables[i].text if hasattr(tables[i], 'text') else str(tables[i])
     enriched_table_metadata = enricher.enrich(original_table_text)
+
+    # Print progresso
+    print(f"   Tabelas: {i+1}/{len(table_summaries)}", end="\r")
 
     # Se houver HTML da tabela, incluir também
     table_html = ""
@@ -1104,9 +1114,15 @@ for i, summary in enumerate(table_summaries):
     retriever.vectorstore.add_documents([doc])
     retriever.docstore.mset([(doc_id, original)])
 
+print(f"   ✓ {len(table_summaries)} tabelas adicionadas")
+
+print(f"   Adicionando {len(image_summaries)} imagens ao vectorstore...")
 for i, summary in enumerate(image_summaries):
     doc_id = str(uuid.uuid4())
     chunk_ids.append(doc_id)
+
+    # Print progresso
+    print(f"   Imagens: {i+1}/{len(image_summaries)}", end="\r")
 
     # ✅ CONTEXTUAL RETRIEVAL: Usar imagem contextualizada para embedding
     # Isso melhora retrieval de imagens médicas em ~49% segundo Anthropic
@@ -1133,9 +1149,13 @@ for i, summary in enumerate(image_summaries):
     retriever.vectorstore.add_documents([doc])
     retriever.docstore.mset([(doc_id, images[i])])
 
+print(f"   ✓ {len(image_summaries)} imagens adicionadas")
+
 # Salvar
+print(f"   Salvando docstore...")
 with open(docstore_path, 'wb') as f:
     pickle.dump(dict(store.store), f)
+print(f"   ✓ Docstore salvo")
 
 # Metadados
 metadata_path = f"{persist_directory}/metadata.pkl"
@@ -1178,11 +1198,13 @@ doc_info = {
 }
 
 # Atualizar ou adicionar
+print(f"   Salvando metadados do documento...")
 metadata['documents'][pdf_id] = doc_info
 
 with open(metadata_path, 'wb') as f:
     pickle.dump(metadata, f)
 
+print(f"   ✓ Metadados salvos")
 print(f"   ✓ Adicionado!\n")
 
 # ===========================================================================
