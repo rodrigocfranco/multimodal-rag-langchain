@@ -394,9 +394,11 @@ def get_images_base64(chunks):
     total_found = 0
 
     # Filtro: imagens muito pequenas geralmente são ícones/decoração
-    # Aumentado para 30KB após análise: imagens reais (figuras médicas) geralmente >30KB
-    # Imagens 5-30KB são tipicamente: ícones, logos, decorações, gráficos simples
-    MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "30"))
+    # 10KB threshold: Balance entre filtrar ícones e manter fluxogramas/diagramas
+    # Imagens <10KB: tipicamente ícones, logos, decorações
+    # Imagens 10-30KB: fluxogramas, diagramas vetoriais, gráficos importantes
+    # Imagens >30KB: fotos, screenshots, imagens complexas
+    MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "10"))
 
     for chunk in chunks:
         chunk_type = str(type(chunk))
@@ -471,7 +473,7 @@ if os.getenv("DEBUG_IMAGES"):
 
 print(f"   ✓ {len(texts)} textos, {len(tables)} tabelas, {len(images)} imagens")
 if filtered_count > 0:
-    print(f"      (detectadas: {total_images_found}, filtradas: {filtered_count} imagens pequenas <30KB)")
+    print(f"      (detectadas: {total_images_found}, filtradas: {filtered_count} imagens pequenas <{MIN_IMAGE_SIZE_KB:.0f}KB)")
 print()
 
 # ===========================================================================
@@ -1253,7 +1255,7 @@ print(f"   Textos (CompositeElement): {len(texts)}")
 print(f"   Tabelas (isoladas): {len(tables)}")
 print(f"   Imagens: {len(images)}")
 if filtered_count > 0:
-    print(f"   (filtradas: {filtered_count} imagens pequenas <30KB - ícones/decorações)")
+    print(f"   (filtradas: {filtered_count} imagens pequenas <{MIN_IMAGE_SIZE_KB:.0f}KB - ícones/decorações)")
 
 print(f"\n💾 Knowledge Base:")
 print(f"   PDF_ID: {pdf_id[:32]}...")
