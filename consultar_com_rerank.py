@@ -944,6 +944,21 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                         _last_docstore_mtime = None
                         _cached_retriever = None
 
+                    # 🗑️ SE TODOS chunks foram órfãos (vectorstore vazio), limpar metadata.pkl também
+                    total_after_cleanup = total_chunks - len(orphan_ids)
+                    if total_after_cleanup == 0:
+                        metadata_path = f"{persist_directory}/metadata.pkl"
+                        if os.path.exists(metadata_path):
+                            # Criar metadata vazio
+                            empty_metadata = {
+                                "documents": {},
+                                "version": "1.0",
+                                "created_at": "auto-cleaned"
+                            }
+                            with open(metadata_path, 'wb') as f:
+                                pickle.dump(empty_metadata, f)
+                            print(f"✅ metadata.pkl limpo (vectorstore vazio = 0 documentos)")
+
                     print(f"✅ {len(orphan_ids)} chunks órfãos removidos!")
                     print("=" * 70 + "\n")
 
