@@ -903,9 +903,65 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
 
     @app.route('/debug-volume', methods=['GET'])
     def debug_volume():
-        """DEBUG: Verificar se o volume tem arquivos"""
+        """DEBUG: Verificar se o volume tem arquivos + LIMPAR ÓRFÃOS com ?clean_orphans=true"""
         import os
         try:
+            # 🧹 CLEANUP: Se clean_orphans=true, limpar chunks órfãos
+            clean_orphans_param = request.args.get('clean_orphans', '').lower() == 'true'
+
+            if clean_orphans_param:
+                global _last_docstore_mtime, _cached_retriever
+                print("\n" + "=" * 70)
+                print("🧹 LIMPEZA DE CHUNKS ÓRFÃOS (via debug-volume)")
+                print("=" * 70)
+
+                # Buscar TODOS os chunks
+                all_results = vectorstore.get(include=['metadatas'])
+                total_chunks = len(all_results['ids'])
+
+                # Identificar órfãos
+                orphan_ids = []
+                for i, meta in enumerate(all_results.get('metadatas', [])):
+                    filename = meta.get('filename')
+                    if filename is None or filename == '':
+                        orphan_ids.append(all_results['ids'][i])
+
+                if len(orphan_ids) > 0:
+                    # Deletar do vectorstore
+                    vectorstore.delete(ids=orphan_ids)
+
+                    # Deletar do docstore e invalidar cache
+                    docstore_path = f"{persist_directory}/docstore.pkl"
+                    if os.path.exists(docstore_path):
+                        with open(docstore_path, 'rb') as f:
+                            docstore = pickle.load(f)
+                        for chunk_id in orphan_ids:
+                            if chunk_id in docstore:
+                                del docstore[chunk_id]
+                        with open(docstore_path, 'wb') as f:
+                            pickle.dump(docstore, f)
+                        os.utime(docstore_path, None)
+                        _last_docstore_mtime = None
+                        _cached_retriever = None
+
+                    print(f"✅ {len(orphan_ids)} chunks órfãos removidos!")
+                    print("=" * 70 + "\n")
+
+                    return jsonify({
+                        "success": True,
+                        "message": f"Limpeza concluída! {len(orphan_ids)} chunks órfãos removidos.",
+                        "orphans_deleted": len(orphan_ids),
+                        "total_chunks_before": total_chunks,
+                        "total_chunks_after": total_chunks - len(orphan_ids)
+                    })
+                else:
+                    return jsonify({
+                        "success": True,
+                        "message": "Nenhum chunk órfão encontrado!",
+                        "orphans_deleted": 0
+                    })
+
+            # Continuar com debug normal se clean_orphans != true
             volume_info = {
                 "persist_directory": persist_directory,
                 "exists": os.path.exists(persist_directory),
