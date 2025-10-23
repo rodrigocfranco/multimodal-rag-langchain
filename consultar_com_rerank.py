@@ -1714,6 +1714,276 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         except Exception as e:
             return jsonify({"error": str(e), "status": "error"}), 500
 
+    @app.route('/admin-data', methods=['GET'])
+    def admin_data():
+        """
+        🔥 ADMIN AVANÇADO: Retorna dados REAIS do Chroma (não apenas metadata.pkl)
+
+        Mostra:
+        - Documentos REALMENTE no Chroma (scaneando todos os chunks)
+        - Chunks órfãos (sem filename ou com filename=N/A)
+        - Inconsistências entre Chroma e metadata.pkl
+        - Permite limpeza total
+        """
+        global _last_docstore_mtime, _cached_retriever
+        try:
+            import pickle
+            from collections import defaultdict
+
+            # 1. Buscar TODOS os chunks do Chroma
+            all_results = vectorstore.get(include=['metadatas'])
+            total_chunks_chroma = len(all_results['ids'])
+
+            # 2. Agrupar chunks por filename/pdf_id
+            docs_real = defaultdict(lambda: {
+                'filename': None,
+                'pdf_id': None,
+                'chunks': [],
+                'chunk_count': 0,
+                'texts': 0,
+                'tables': 0,
+                'images': 0,
+                'status': 'in_chroma',
+                'in_metadata': False
+            })
+
+            orphan_chunks = []
+
+            for i, chunk_id in enumerate(all_results['ids']):
+                meta = all_results['metadatas'][i]
+                filename = meta.get('filename')
+                pdf_id = meta.get('pdf_id', 'unknown')
+                chunk_type = meta.get('type', 'unknown')
+
+                # Identificar órfãos
+                if not filename or filename == 'N/A' or filename == '':
+                    orphan_chunks.append({
+                        'chunk_id': chunk_id,
+                        'pdf_id': pdf_id,
+                        'type': chunk_type,
+                        'source': meta.get('source', 'N/A')
+                    })
+                    continue
+
+                # Agrupar por filename
+                key = filename
+                docs_real[key]['filename'] = filename
+                docs_real[key]['pdf_id'] = pdf_id
+                docs_real[key]['chunks'].append(chunk_id)
+                docs_real[key]['chunk_count'] += 1
+
+                if chunk_type == 'text':
+                    docs_real[key]['texts'] += 1
+                elif chunk_type == 'table':
+                    docs_real[key]['tables'] += 1
+                elif chunk_type == 'image':
+                    docs_real[key]['images'] += 1
+
+            # 3. Carregar metadata.pkl para comparação
+            metadata_path = f"{persist_directory}/metadata.pkl"
+            metadata_docs = {}
+            if os.path.exists(metadata_path):
+                with open(metadata_path, 'rb') as f:
+                    metadata = pickle.load(f)
+                    metadata_docs = metadata.get('documents', {})
+
+            # 4. Marcar quais documentos estão em metadata.pkl
+            for filename, doc_data in docs_real.items():
+                pdf_id = doc_data['pdf_id']
+                if pdf_id in metadata_docs:
+                    doc_data['in_metadata'] = True
+                    doc_data['metadata_chunks'] = metadata_docs[pdf_id].get('stats', {}).get('total_chunks', 0)
+                    doc_data['uploaded_at'] = metadata_docs[pdf_id].get('uploaded_at', 'N/A')
+                    doc_data['file_size'] = metadata_docs[pdf_id].get('file_size', 0)
+                else:
+                    doc_data['status'] = 'orphan_doc'  # Documento no Chroma mas NÃO no metadata
+
+            # 5. Identificar documentos APENAS no metadata (sem chunks no Chroma)
+            metadata_only_docs = []
+            for pdf_id, meta_doc in metadata_docs.items():
+                filename = meta_doc.get('filename')
+                # Verificar se existe no Chroma
+                if filename not in docs_real:
+                    metadata_only_docs.append({
+                        'filename': filename,
+                        'pdf_id': pdf_id,
+                        'chunk_count': meta_doc.get('stats', {}).get('total_chunks', 0),
+                        'status': 'in_metadata_only',
+                        'uploaded_at': meta_doc.get('uploaded_at', 'N/A')
+                    })
+
+            # 6. Estatísticas globais
+            stats = {
+                'total_chunks_chroma': total_chunks_chroma,
+                'total_docs_chroma': len(docs_real),
+                'total_docs_metadata': len(metadata_docs),
+                'orphan_chunks': len(orphan_chunks),
+                'orphan_docs': sum(1 for d in docs_real.values() if d['status'] == 'orphan_doc'),
+                'metadata_only_docs': len(metadata_only_docs),
+                'consistent_docs': sum(1 for d in docs_real.values() if d['in_metadata'])
+            }
+
+            # 7. Converter para lista
+            documents_list = [
+                {
+                    'filename': doc['filename'],
+                    'pdf_id': doc['pdf_id'],
+                    'chunk_count': doc['chunk_count'],
+                    'texts': doc['texts'],
+                    'tables': doc['tables'],
+                    'images': doc['images'],
+                    'status': doc['status'],
+                    'in_metadata': doc['in_metadata'],
+                    'metadata_chunks': doc.get('metadata_chunks', 0),
+                    'uploaded_at': doc.get('uploaded_at', 'N/A'),
+                    'file_size': doc.get('file_size', 0),
+                    'chunk_ids': doc['chunks'][:5]  # Primeiros 5 IDs
+                }
+                for doc in docs_real.values()
+            ]
+
+            return jsonify({
+                'success': True,
+                'stats': stats,
+                'documents': documents_list,
+                'orphan_chunks': orphan_chunks[:50],  # Primeiros 50
+                'metadata_only_docs': metadata_only_docs,
+                'warnings': [
+                    f"⚠️ {stats['orphan_chunks']} chunks órfãos encontrados" if stats['orphan_chunks'] > 0 else None,
+                    f"⚠️ {stats['orphan_docs']} documentos no Chroma sem registro em metadata" if stats['orphan_docs'] > 0 else None,
+                    f"⚠️ {stats['metadata_only_docs']} documentos no metadata sem chunks no Chroma" if stats['metadata_only_docs'] > 0 else None
+                ]
+            })
+
+        except Exception as e:
+            return jsonify({"error": str(e), "success": False}), 500
+
+    @app.route('/admin-cleanup', methods=['POST'])
+    def admin_cleanup():
+        """
+        🔥 ADMIN: Limpeza total ou seletiva
+
+        Parâmetros:
+        - action: "delete_orphans" | "delete_document" | "nuke_all"
+        - pdf_id: ID do documento (para delete_document)
+        """
+        global _last_docstore_mtime, _cached_retriever
+
+        # Validar API key
+        required_key = os.getenv('API_SECRET_KEY')
+        provided = request.headers.get('X-API-Key') or request.json.get('api_key')
+        if required_key and provided != required_key:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        try:
+            data = request.json
+            action = data.get('action')
+
+            if action == 'nuke_all':
+                # LIMPAR TUDO
+                all_results = vectorstore.get(include=['metadatas'])
+                all_chunk_ids = all_results['ids']
+
+                if len(all_chunk_ids) > 0:
+                    # 1. Deletar do Chroma
+                    vectorstore.delete(ids=all_chunk_ids)
+
+                    # 2. Limpar docstore
+                    docstore_path = f"{persist_directory}/docstore.pkl"
+                    if os.path.exists(docstore_path):
+                        import pickle
+                        with open(docstore_path, 'wb') as f:
+                            pickle.dump({}, f)
+                        os.utime(docstore_path, None)
+
+                    # 3. Limpar metadata
+                    metadata_path = f"{persist_directory}/metadata.pkl"
+                    if os.path.exists(metadata_path):
+                        import pickle
+                        with open(metadata_path, 'wb') as f:
+                            pickle.dump({"documents": {}, "version": "1.0"}, f)
+
+                    # 4. Invalidar cache
+                    _last_docstore_mtime = None
+                    _cached_retriever = None
+
+                    return jsonify({
+                        "success": True,
+                        "action": "nuke_all",
+                        "deleted_chunks": len(all_chunk_ids),
+                        "message": f"✅ TUDO limpo! {len(all_chunk_ids)} chunks deletados"
+                    })
+                else:
+                    return jsonify({
+                        "success": True,
+                        "action": "nuke_all",
+                        "message": "Já está limpo (0 chunks)"
+                    })
+
+            elif action == 'delete_orphans':
+                # Deletar apenas chunks órfãos
+                all_results = vectorstore.get(include=['metadatas'])
+                orphan_ids = []
+
+                for i, chunk_id in enumerate(all_results['ids']):
+                    meta = all_results['metadatas'][i]
+                    filename = meta.get('filename')
+                    if not filename or filename == 'N/A' or filename == '':
+                        orphan_ids.append(chunk_id)
+
+                if len(orphan_ids) > 0:
+                    vectorstore.delete(ids=orphan_ids)
+
+                    # Limpar do docstore
+                    docstore_path = f"{persist_directory}/docstore.pkl"
+                    if os.path.exists(docstore_path):
+                        import pickle
+                        with open(docstore_path, 'rb') as f:
+                            docstore = pickle.load(f)
+                        for chunk_id in orphan_ids:
+                            if chunk_id in docstore:
+                                del docstore[chunk_id]
+                        with open(docstore_path, 'wb') as f:
+                            pickle.dump(docstore, f)
+                        os.utime(docstore_path, None)
+
+                    _last_docstore_mtime = None
+                    _cached_retriever = None
+
+                    return jsonify({
+                        "success": True,
+                        "action": "delete_orphans",
+                        "deleted_chunks": len(orphan_ids),
+                        "message": f"✅ {len(orphan_ids)} chunks órfãos deletados"
+                    })
+                else:
+                    return jsonify({
+                        "success": True,
+                        "action": "delete_orphans",
+                        "message": "Nenhum chunk órfão encontrado"
+                    })
+
+            elif action == 'delete_document':
+                pdf_id = data.get('pdf_id')
+                if not pdf_id:
+                    return jsonify({"error": "pdf_id é obrigatório"}), 400
+
+                # Usar a função existente de deleção
+                from document_manager import delete_document as delete_doc_func
+                result = delete_doc_func(pdf_id, persist_directory)
+
+                if result['status'] == 'success':
+                    _last_docstore_mtime = None
+                    _cached_retriever = None
+
+                return jsonify(result)
+
+            else:
+                return jsonify({"error": "Ação inválida. Use: nuke_all, delete_orphans, delete_document"}), 400
+
+        except Exception as e:
+            return jsonify({"error": str(e), "success": False}), 500
+
     @app.route('/debug-docids', methods=['GET'])
     def debug_docids():
         """CRITICAL: Diagnose doc_id mapping between vectorstore and docstore"""
@@ -1915,11 +2185,11 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             import traceback
             return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
-    @app.route('/manage', methods=['GET'])
-    def manage():
-        """UI de gerenciamento de documentos"""
+    @app.route('/admin', methods=['GET'])
+    def admin():
+        """🔥 ADMIN AVANÇADO: UI com dados REAIS do Chroma"""
         try:
-            with open('ui_manage.html', 'r', encoding='utf-8') as f:
+            with open('ui_admin.html', 'r', encoding='utf-8') as f:
                 return f.read()
         except FileNotFoundError:
             return "<h1>UI de gerenciamento não encontrada</h1><p>Arquivo ui_manage.html não existe.</p>", 404
