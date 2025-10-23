@@ -1008,256 +1008,300 @@ retriever = MultiVectorRetriever(
     id_key="doc_id",
 )
 
-# Adicionar com metadados
-chunk_ids = []  # Para tracking
-print(f"   Adicionando {len(text_summaries)} textos ao vectorstore...")
-for i, summary in enumerate(text_summaries):
-    doc_id = str(uuid.uuid4())
-    chunk_ids.append(doc_id)
+# ===========================================================================
+# 🛡️ ROLLBACK PROTECTION: Rastrear chunks para deletar em caso de erro
+# ===========================================================================
+chunk_ids = []  # Para tracking E rollback
+rollback_needed = False
 
-    # Extrair page_number se disponível
-    page_num = None
-    if hasattr(texts[i], 'metadata') and hasattr(texts[i].metadata, 'page_number'):
-        page_num = texts[i].metadata.page_number
-
-    # Extrair section heading (contexto médico)
-    section = extract_section_heading(texts[i])
-
-    # ✅ CONTEXTUAL RETRIEVAL: Usar chunk contextualizado para embedding
-    # Isso melhora retrieval em 49% segundo Anthropic
-    contextualized_chunk = contextualized_texts[i]
-
-    # ✅ METADATA ENRICHMENT: Usar metadados pré-processados (muito mais rápido!)
-    enriched_metadata = enriched_texts_metadata[i] if i < len(enriched_texts_metadata) else {}
-
-    # Print progresso
-    print(f"   Textos: {i+1}/{len(text_summaries)}", end="\r")
-
-    # Combined content: contexto + resumo + texto original
-    combined_content = f"{contextualized_chunk}\n\n[RESUMO]\n{summary}"
-
-    doc = Document(
-        page_content=combined_content,  # ✅ CONTEXTUALIZADO + RESUMO
-        metadata={
-            "doc_id": doc_id,
-            "pdf_id": pdf_id,  # ✅ ID do PDF
-            "source": pdf_filename,
-            "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
-            "type": "text",
-            "index": i,
-            "page_number": page_num,
-            "uploaded_at": uploaded_at,
-            "section": section,              # ✅ Seção do documento
-            "document_type": document_type,  # ✅ Tipo de documento
-            "summary": summary,              # ✅ Resumo separado
-
-            # ✅ METADADOS ENRIQUECIDOS (KeyBERT + Medical NER + Numerical)
-            # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
-            # Convertemos listas para strings separadas por vírgula
-            "keywords_str": enriched_metadata.get("keywords_str", ""),
-            "entities_diseases_str": ", ".join(enriched_metadata.get("entities_diseases", [])),
-            "entities_medications_str": ", ".join(enriched_metadata.get("entities_medications", [])),
-            "entities_procedures_str": ", ".join(enriched_metadata.get("entities_procedures", [])),
-            "has_medical_entities": enriched_metadata.get("has_medical_entities", False),
-            "measurements_count": len(enriched_metadata.get("measurements", [])),
-            "has_measurements": enriched_metadata.get("has_measurements", False),
-        }
-    )
+try:
+    # Adicionar com metadados
+    print(f"   Adicionando {len(text_summaries)} textos ao vectorstore...")
+    for i, summary in enumerate(text_summaries):
+        doc_id = str(uuid.uuid4())
+        chunk_ids.append(doc_id)
     
-    # Adicionar source ao documento original
-    original = texts[i]
+        # Extrair page_number se disponível
+        page_num = None
+        if hasattr(texts[i], 'metadata') and hasattr(texts[i].metadata, 'page_number'):
+            page_num = texts[i].metadata.page_number
     
-    # Criar metadata dict se não existir
-    if not hasattr(original, 'metadata'):
-        # Criar um objeto simples com metadata
-        class DocWithMetadata:
-            def __init__(self, text, metadata):
-                self.text = text
-                self.metadata = metadata
-        original = DocWithMetadata(original.text if hasattr(original, 'text') else str(original), {'source': pdf_filename})
-    elif isinstance(original.metadata, dict):
-        original.metadata['source'] = pdf_filename
-    else:
-        # ElementMetadata object
-        if not hasattr(original.metadata, 'source'):
-            original.metadata.source = pdf_filename
+        # Extrair section heading (contexto médico)
+        section = extract_section_heading(texts[i])
     
-    retriever.vectorstore.add_documents([doc])
-    retriever.docstore.mset([(doc_id, original)])
-
-print(f"   ✓ {len(text_summaries)} textos adicionados")
-
-print(f"   Adicionando {len(table_summaries)} tabelas ao vectorstore...")
-for i, summary in enumerate(table_summaries):
-    doc_id = str(uuid.uuid4())
-    chunk_ids.append(doc_id)
-
-    # Extrair page_number se disponível
-    page_num = None
-    if hasattr(tables[i], 'metadata') and hasattr(tables[i].metadata, 'page_number'):
-        page_num = tables[i].metadata.page_number
-
-    # Extrair section heading (tabelas geralmente têm context)
-    section = extract_section_heading(tables[i])
-
-    # ✅ CONTEXTUAL RETRIEVAL: Usar tabela contextualizada
-    contextualized_table = contextualized_tables[i]
-
-    # ✅ METADATA ENRICHMENT: Usar metadados pré-processados (muito mais rápido!)
-    enriched_table_metadata = enriched_tables_metadata[i] if i < len(enriched_tables_metadata) else {}
-
-    # Print progresso
-    print(f"   Tabelas: {i+1}/{len(table_summaries)}", end="\r")
-
-    # Se houver HTML da tabela, incluir também
-    table_html = ""
-    if hasattr(tables[i], 'metadata') and hasattr(tables[i].metadata, 'text_as_html'):
-        table_html = f"\n\n[HTML]\n{tables[i].metadata.text_as_html}"
-
-    # Combined content: contexto + tabela completa + resumo + HTML
-    combined_table_content = f"{contextualized_table}\n\n[RESUMO]\n{summary}{table_html}"
-
-    doc = Document(
-        page_content=combined_table_content,  # ✅ CONTEXTUALIZADO + TABELA + RESUMO
-        metadata={
-            "doc_id": doc_id,
-            "pdf_id": pdf_id,  # ✅ ID do PDF
-            "source": pdf_filename,
-            "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
-            "type": "table",
-            "index": i,
-            "page_number": page_num,
-            "uploaded_at": uploaded_at,
-            "section": section,              # ✅ Seção do documento
-            "document_type": document_type,  # ✅ Tipo de documento
-            "summary": summary,              # ✅ Resumo separado
-
-            # ✅ METADADOS ENRIQUECIDOS (tabelas são especialmente ricas!)
-            # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
-            "keywords_str": enriched_table_metadata.get("keywords_str", ""),
-            "entities_diseases_str": ", ".join(enriched_table_metadata.get("entities_diseases", [])),
-            "entities_medications_str": ", ".join(enriched_table_metadata.get("entities_medications", [])),
-            "entities_procedures_str": ", ".join(enriched_table_metadata.get("entities_procedures", [])),
-            "has_medical_entities": enriched_table_metadata.get("has_medical_entities", False),
-            "measurements_count": len(enriched_table_metadata.get("measurements", [])),
-            "has_measurements": enriched_table_metadata.get("has_measurements", False),
-        }
-    )
+        # ✅ CONTEXTUAL RETRIEVAL: Usar chunk contextualizado para embedding
+        # Isso melhora retrieval em 49% segundo Anthropic
+        contextualized_chunk = contextualized_texts[i]
     
-    # Adicionar source à tabela original
-    original = tables[i]
+        # ✅ METADATA ENRICHMENT: Usar metadados pré-processados (muito mais rápido!)
+        enriched_metadata = enriched_texts_metadata[i] if i < len(enriched_texts_metadata) else {}
     
-    # Criar metadata dict se não existir
-    if not hasattr(original, 'metadata'):
-        # Criar um objeto simples com metadata
-        class DocWithMetadata:
-            def __init__(self, text, metadata):
-                self.text = text
-                self.metadata = metadata
-        original = DocWithMetadata(original.text if hasattr(original, 'text') else str(original), {'source': pdf_filename})
-    elif isinstance(original.metadata, dict):
-        original.metadata['source'] = pdf_filename
-    else:
-        # ElementMetadata object
-        if not hasattr(original.metadata, 'source'):
-            original.metadata.source = pdf_filename
+        # Print progresso
+        print(f"   Textos: {i+1}/{len(text_summaries)}", end="\r")
     
-    retriever.vectorstore.add_documents([doc])
-    retriever.docstore.mset([(doc_id, original)])
+        # Combined content: contexto + resumo + texto original
+        combined_content = f"{contextualized_chunk}\n\n[RESUMO]\n{summary}"
+    
+        doc = Document(
+            page_content=combined_content,  # ✅ CONTEXTUALIZADO + RESUMO
+            metadata={
+                "doc_id": doc_id,
+                "pdf_id": pdf_id,  # ✅ ID do PDF
+                "source": pdf_filename,
+                "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
+                "type": "text",
+                "index": i,
+                "page_number": page_num,
+                "uploaded_at": uploaded_at,
+                "section": section,              # ✅ Seção do documento
+                "document_type": document_type,  # ✅ Tipo de documento
+                "summary": summary,              # ✅ Resumo separado
+    
+                # ✅ METADADOS ENRIQUECIDOS (KeyBERT + Medical NER + Numerical)
+                # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
+                # Convertemos listas para strings separadas por vírgula
+                "keywords_str": enriched_metadata.get("keywords_str", ""),
+                "entities_diseases_str": ", ".join(enriched_metadata.get("entities_diseases", [])),
+                "entities_medications_str": ", ".join(enriched_metadata.get("entities_medications", [])),
+                "entities_procedures_str": ", ".join(enriched_metadata.get("entities_procedures", [])),
+                "has_medical_entities": enriched_metadata.get("has_medical_entities", False),
+                "measurements_count": len(enriched_metadata.get("measurements", [])),
+                "has_measurements": enriched_metadata.get("has_measurements", False),
+            }
+        )
+        
+        # Adicionar source ao documento original
+        original = texts[i]
+        
+        # Criar metadata dict se não existir
+        if not hasattr(original, 'metadata'):
+            # Criar um objeto simples com metadata
+            class DocWithMetadata:
+                def __init__(self, text, metadata):
+                    self.text = text
+                    self.metadata = metadata
+            original = DocWithMetadata(original.text if hasattr(original, 'text') else str(original), {'source': pdf_filename})
+        elif isinstance(original.metadata, dict):
+            original.metadata['source'] = pdf_filename
+        else:
+            # ElementMetadata object
+            if not hasattr(original.metadata, 'source'):
+                original.metadata.source = pdf_filename
+        
+        retriever.vectorstore.add_documents([doc])
+        retriever.docstore.mset([(doc_id, original)])
+    
+    print(f"   ✓ {len(text_summaries)} textos adicionados")
+    
+    print(f"   Adicionando {len(table_summaries)} tabelas ao vectorstore...")
+    for i, summary in enumerate(table_summaries):
+        doc_id = str(uuid.uuid4())
+        chunk_ids.append(doc_id)
+    
+        # Extrair page_number se disponível
+        page_num = None
+        if hasattr(tables[i], 'metadata') and hasattr(tables[i].metadata, 'page_number'):
+            page_num = tables[i].metadata.page_number
+    
+        # Extrair section heading (tabelas geralmente têm context)
+        section = extract_section_heading(tables[i])
+    
+        # ✅ CONTEXTUAL RETRIEVAL: Usar tabela contextualizada
+        contextualized_table = contextualized_tables[i]
+    
+        # ✅ METADATA ENRICHMENT: Usar metadados pré-processados (muito mais rápido!)
+        enriched_table_metadata = enriched_tables_metadata[i] if i < len(enriched_tables_metadata) else {}
+    
+        # Print progresso
+        print(f"   Tabelas: {i+1}/{len(table_summaries)}", end="\r")
+    
+        # Se houver HTML da tabela, incluir também
+        table_html = ""
+        if hasattr(tables[i], 'metadata') and hasattr(tables[i].metadata, 'text_as_html'):
+            table_html = f"\n\n[HTML]\n{tables[i].metadata.text_as_html}"
+    
+        # Combined content: contexto + tabela completa + resumo + HTML
+        combined_table_content = f"{contextualized_table}\n\n[RESUMO]\n{summary}{table_html}"
+    
+        doc = Document(
+            page_content=combined_table_content,  # ✅ CONTEXTUALIZADO + TABELA + RESUMO
+            metadata={
+                "doc_id": doc_id,
+                "pdf_id": pdf_id,  # ✅ ID do PDF
+                "source": pdf_filename,
+                "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
+                "type": "table",
+                "index": i,
+                "page_number": page_num,
+                "uploaded_at": uploaded_at,
+                "section": section,              # ✅ Seção do documento
+                "document_type": document_type,  # ✅ Tipo de documento
+                "summary": summary,              # ✅ Resumo separado
+    
+                # ✅ METADADOS ENRIQUECIDOS (tabelas são especialmente ricas!)
+                # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
+                "keywords_str": enriched_table_metadata.get("keywords_str", ""),
+                "entities_diseases_str": ", ".join(enriched_table_metadata.get("entities_diseases", [])),
+                "entities_medications_str": ", ".join(enriched_table_metadata.get("entities_medications", [])),
+                "entities_procedures_str": ", ".join(enriched_table_metadata.get("entities_procedures", [])),
+                "has_medical_entities": enriched_table_metadata.get("has_medical_entities", False),
+                "measurements_count": len(enriched_table_metadata.get("measurements", [])),
+                "has_measurements": enriched_table_metadata.get("has_measurements", False),
+            }
+        )
+        
+        # Adicionar source à tabela original
+        original = tables[i]
+        
+        # Criar metadata dict se não existir
+        if not hasattr(original, 'metadata'):
+            # Criar um objeto simples com metadata
+            class DocWithMetadata:
+                def __init__(self, text, metadata):
+                    self.text = text
+                    self.metadata = metadata
+            original = DocWithMetadata(original.text if hasattr(original, 'text') else str(original), {'source': pdf_filename})
+        elif isinstance(original.metadata, dict):
+            original.metadata['source'] = pdf_filename
+        else:
+            # ElementMetadata object
+            if not hasattr(original.metadata, 'source'):
+                original.metadata.source = pdf_filename
+        
+        retriever.vectorstore.add_documents([doc])
+        retriever.docstore.mset([(doc_id, original)])
+    
+    print(f"   ✓ {len(table_summaries)} tabelas adicionadas")
+    
+    print(f"   Adicionando {len(image_summaries)} imagens ao vectorstore...")
+    for i, summary in enumerate(image_summaries):
+        doc_id = str(uuid.uuid4())
+        chunk_ids.append(doc_id)
+    
+        # Print progresso
+        print(f"   Imagens: {i+1}/{len(image_summaries)}", end="\r")
+    
+        # ✅ CONTEXTUAL RETRIEVAL: Usar imagem contextualizada para embedding
+        # Isso melhora retrieval de imagens médicas em ~49% segundo Anthropic
+        contextualized_chunk = contextualized_images[i] if i < len(contextualized_images) else summary
+    
+        doc = Document(
+            page_content=contextualized_chunk,  # ✅ Usar versão contextualizada
+            metadata={
+                "doc_id": doc_id,
+                "pdf_id": pdf_id,  # ✅ ID do PDF
+                "source": pdf_filename,
+                "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
+                "type": "image",
+                "index": i,
+                "page_number": None,  # Imagens geralmente não têm page_number
+                "uploaded_at": uploaded_at,
+                "section": None,                 # Imagens geralmente não têm seção detectável
+                "document_type": document_type,  # ✅ NOVO: Tipo de documento
+                # ✅ NOVO: Adicionar summary original como metadata (útil para debug)
+                "summary": summary[:500],  # Primeiros 500 chars do summary original
+            }
+        )
+    
+        # Salvar imagem original no docstore (base64)
+        retriever.vectorstore.add_documents([doc])
+        retriever.docstore.mset([(doc_id, images[i])])
+    
+    print(f"   ✓ {len(image_summaries)} imagens adicionadas")
+    
+    # Salvar
+    print(f"   Salvando docstore...")
+    with open(docstore_path, 'wb') as f:
+        pickle.dump(dict(store.store), f)
+    print(f"   ✓ Docstore salvo")
+    
+    # Metadados
+    metadata_path = f"{persist_directory}/metadata.pkl"
+    metadata = {}
+    if os.path.exists(metadata_path):
+        with open(metadata_path, 'rb') as f:
+            metadata = pickle.load(f)
+    
+    # Migrar estrutura antiga se necessário
+    if 'pdfs' in metadata and 'documents' not in metadata:
+        metadata['documents'] = {}
+        # Converter estrutura antiga
+        for old_pdf in metadata.get('pdfs', []):
+            # Não temos pdf_id nos dados antigos, usar filename como chave temporária
+            pass
+    
+    if 'documents' not in metadata:
+        metadata['documents'] = {}
+    
+    processed_at = time.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Informações do documento
+    doc_info = {
+        "pdf_id": pdf_id,
+        "filename": pdf_filename,
+        "original_filename": os.path.basename(file_path),
+        "file_size": file_size,
+        "hash": pdf_id,
+        "uploaded_at": uploaded_at,
+        "processed_at": processed_at,
+        "stats": {
+            "texts": len(texts),
+            "tables": len(tables),
+            "images": len(images),
+            "total_chunks": len(chunk_ids)
+        },
+        "chunk_ids": chunk_ids,
+        "status": "processed",
+        "error": None
+    }
+    
+    # Atualizar ou adicionar
+    print(f"   Salvando metadados do documento...")
+    metadata['documents'][pdf_id] = doc_info
+    
+    with open(metadata_path, 'wb') as f:
+        pickle.dump(metadata, f)
+    
+        print(f"   ✓ Metadados salvos")
+        print(f"   ✓ Adicionado!\n")
 
-print(f"   ✓ {len(table_summaries)} tabelas adicionadas")
+except Exception as e:
+    # ===========================================================================
+    # 🛡️ ROLLBACK: Deletar todos os chunks adicionados se der erro
+    # ===========================================================================
+    rollback_needed = True
+    print(f"\n❌ ERRO durante processamento: {str(e)}")
+    print(f"🔄 Executando ROLLBACK para remover {len(chunk_ids)} chunks parciais...")
 
-print(f"   Adicionando {len(image_summaries)} imagens ao vectorstore...")
-for i, summary in enumerate(image_summaries):
-    doc_id = str(uuid.uuid4())
-    chunk_ids.append(doc_id)
+    try:
+        # 1. Deletar do vectorstore (Chroma)
+        if chunk_ids:
+            vectorstore.delete(ids=chunk_ids)
+            print(f"   ✓ {len(chunk_ids)} chunks deletados do vectorstore")
 
-    # Print progresso
-    print(f"   Imagens: {i+1}/{len(image_summaries)}", end="\r")
+        # 2. Deletar do docstore
+        for chunk_id in chunk_ids:
+            if chunk_id in store.store:
+                del store.store[chunk_id]
 
-    # ✅ CONTEXTUAL RETRIEVAL: Usar imagem contextualizada para embedding
-    # Isso melhora retrieval de imagens médicas em ~49% segundo Anthropic
-    contextualized_chunk = contextualized_images[i] if i < len(contextualized_images) else summary
+        # Salvar docstore limpo
+        with open(docstore_path, 'wb') as f:
+            pickle.dump(dict(store.store), f)
+        print(f"   ✓ Docstore limpo")
 
-    doc = Document(
-        page_content=contextualized_chunk,  # ✅ Usar versão contextualizada
-        metadata={
-            "doc_id": doc_id,
-            "pdf_id": pdf_id,  # ✅ ID do PDF
-            "source": pdf_filename,
-            "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
-            "type": "image",
-            "index": i,
-            "page_number": None,  # Imagens geralmente não têm page_number
-            "uploaded_at": uploaded_at,
-            "section": None,                 # Imagens geralmente não têm seção detectável
-            "document_type": document_type,  # ✅ NOVO: Tipo de documento
-            # ✅ NOVO: Adicionar summary original como metadata (útil para debug)
-            "summary": summary[:500],  # Primeiros 500 chars do summary original
-        }
-    )
+        # 3. NÃO salvar metadata.pkl (não adicionar documento com erro)
+        print(f"   ✓ Metadata NÃO foi salvo (documento não foi registrado)")
 
-    # Salvar imagem original no docstore (base64)
-    retriever.vectorstore.add_documents([doc])
-    retriever.docstore.mset([(doc_id, images[i])])
+        print(f"\n✅ ROLLBACK concluído com sucesso!")
+        print(f"   Vectorstore permanece consistente (documento com erro não foi salvo)")
 
-print(f"   ✓ {len(image_summaries)} imagens adicionadas")
+    except Exception as rollback_error:
+        print(f"\n❌ ERRO durante rollback: {str(rollback_error)}")
+        print(f"   ⚠️  ATENÇÃO: Vectorstore pode estar inconsistente!")
+        print(f"   Execute: curl 'https://comfortable-tenderness-production.up.railway.app/debug-volume?clean_orphans=true'")
 
-# Salvar
-print(f"   Salvando docstore...")
-with open(docstore_path, 'wb') as f:
-    pickle.dump(dict(store.store), f)
-print(f"   ✓ Docstore salvo")
-
-# Metadados
-metadata_path = f"{persist_directory}/metadata.pkl"
-metadata = {}
-if os.path.exists(metadata_path):
-    with open(metadata_path, 'rb') as f:
-        metadata = pickle.load(f)
-
-# Migrar estrutura antiga se necessário
-if 'pdfs' in metadata and 'documents' not in metadata:
-    metadata['documents'] = {}
-    # Converter estrutura antiga
-    for old_pdf in metadata.get('pdfs', []):
-        # Não temos pdf_id nos dados antigos, usar filename como chave temporária
-        pass
-
-if 'documents' not in metadata:
-    metadata['documents'] = {}
-
-processed_at = time.strftime("%Y-%m-%d %H:%M:%S")
-
-# Informações do documento
-doc_info = {
-    "pdf_id": pdf_id,
-    "filename": pdf_filename,
-    "original_filename": os.path.basename(file_path),
-    "file_size": file_size,
-    "hash": pdf_id,
-    "uploaded_at": uploaded_at,
-    "processed_at": processed_at,
-    "stats": {
-        "texts": len(texts),
-        "tables": len(tables),
-        "images": len(images),
-        "total_chunks": len(chunk_ids)
-    },
-    "chunk_ids": chunk_ids,
-    "status": "processed",
-    "error": None
-}
-
-# Atualizar ou adicionar
-print(f"   Salvando metadados do documento...")
-metadata['documents'][pdf_id] = doc_info
-
-with open(metadata_path, 'wb') as f:
-    pickle.dump(metadata, f)
-
-print(f"   ✓ Metadados salvos")
-print(f"   ✓ Adicionado!\n")
+    # Re-raise exception original para que o upload endpoint retorne erro
+    raise e
 
 # ===========================================================================
 # RELATÓRIO DE QUALIDADE
