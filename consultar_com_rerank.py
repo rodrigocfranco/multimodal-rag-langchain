@@ -908,6 +908,35 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         try:
             # 🧹 CLEANUP: Se clean_orphans=true, limpar chunks órfãos
             clean_orphans_param = request.args.get('clean_orphans', '').lower() == 'true'
+            force_clean_metadata = request.args.get('force_clean_metadata', '').lower() == 'true'
+
+            # 🗑️ FORCE CLEAN METADATA: Limpar metadata.pkl quando vectorstore está vazio
+            if force_clean_metadata:
+                all_results = vectorstore.get(include=['metadatas'])
+                total_chunks = len(all_results['ids'])
+
+                if total_chunks == 0:
+                    metadata_path = f"{persist_directory}/metadata.pkl"
+                    if os.path.exists(metadata_path):
+                        empty_metadata = {
+                            "documents": {},
+                            "version": "1.0",
+                            "created_at": "force-cleaned"
+                        }
+                        with open(metadata_path, 'wb') as f:
+                            pickle.dump(empty_metadata, f)
+
+                        return jsonify({
+                            "success": True,
+                            "message": "metadata.pkl resetado (vectorstore está vazio)",
+                            "action": "force_clean_metadata"
+                        })
+                else:
+                    return jsonify({
+                        "success": False,
+                        "message": f"Não posso limpar metadata.pkl: vectorstore tem {total_chunks} chunks",
+                        "total_chunks": total_chunks
+                    }), 400
 
             if clean_orphans_param:
                 global _last_docstore_mtime, _cached_retriever
