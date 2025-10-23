@@ -16,6 +16,11 @@ from base64 import b64decode, b64encode
 load_dotenv()
 
 # ===========================================================================
+# CONFIGURAÇÕES GLOBAIS
+# ===========================================================================
+MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "30"))
+
+# ===========================================================================
 # METADATA ENRICHMENT SYSTEM
 # ===========================================================================
 print("🚀 Carregando Metadata Enrichment System...")
