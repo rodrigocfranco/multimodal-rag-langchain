@@ -548,7 +548,8 @@ if modo_api:
     
     def parse_docs(docs):
         """Docs podem ser: Document, Table, CompositeElement, ou string"""
-        b64, text = [], []
+        b64_images = []  # ✅ Mudança: incluir metadata junto com base64
+        text = []
         for doc in docs:
             # Extrair conteúdo baseado no tipo
             if hasattr(doc, 'page_content'):
@@ -571,7 +572,12 @@ if modo_api:
             # Tentar identificar se é imagem (base64)
             try:
                 b64decode(content)
-                b64.append(content)
+                # ✅ NOVO: Incluir metadata junto com base64
+                image_data = {
+                    "base64": content,
+                    "metadata": metadata
+                }
+                b64_images.append(image_data)
             except:
                 # Criar objeto com .text para compatibilidade
                 class TextDoc:
@@ -581,7 +587,7 @@ if modo_api:
 
                 text.append(TextDoc(content, metadata))
 
-        return {"images": b64, "texts": text}
+        return {"images": b64_images, "texts": text}
     
     def build_prompt(kwargs):
         docs = kwargs["context"]
@@ -640,9 +646,12 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         }]
 
         # ✅ CONVERT IMAGES TO JPEG before sending to Vision API
-        for image in docs["images"]:
+        for image_data in docs["images"]:
+            # ✅ ATUALIZADO: images agora são dicts com base64 + metadata
+            image_base64 = image_data["base64"]  # Extrair base64
+
             # Convert to JPEG (handles TIFF, BMP, etc.)
-            jpeg_image, success = convert_image_to_jpeg_base64(image)
+            jpeg_image, success = convert_image_to_jpeg_base64(image_base64)
             if success:
                 prompt_content.append({
                     "type": "image_url",
@@ -869,13 +878,17 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                         source = 'unknown'
                     sources.add(source)
 
+            # ✅ NOVO: Adicionar imagens no response
             return jsonify({
                 "answer": response['response'],
                 "sources": list(sources),
                 "chunks_used": num_chunks,
                 "reranked": True,
-                "total_docs_indexed": num_docs,  # ✅ Mostrar quantos docs estão indexados
-                "cache_hit": _last_docstore_mtime is not None  # ✅ Debug: foi cache hit?
+                "total_docs_indexed": num_docs,
+                "cache_hit": _last_docstore_mtime is not None,
+                "has_images": len(response['context']['images']) > 0,  # ✅ Tem imagens?
+                "images": response['context']['images'],  # ✅ ADICIONAR imagens com metadata
+                "num_images": len(response['context']['images'])  # ✅ Quantidade de imagens
             })
         except Exception as e:
             import traceback
@@ -2208,7 +2221,8 @@ else:
     # Pipeline RAG
     def parse_docs(docs):
         """Docs podem ser: Document, Table, CompositeElement, ou string"""
-        b64, text = [], []
+        b64_images = []  # ✅ Mudança: incluir metadata junto com base64
+        text = []
         for doc in docs:
             # Extrair conteúdo baseado no tipo
             if hasattr(doc, 'page_content'):
@@ -2231,7 +2245,12 @@ else:
             # Tentar identificar se é imagem (base64)
             try:
                 b64decode(content)
-                b64.append(content)
+                # ✅ NOVO: Incluir metadata junto com base64
+                image_data = {
+                    "base64": content,
+                    "metadata": metadata
+                }
+                b64_images.append(image_data)
             except:
                 # Criar objeto com .text para compatibilidade
                 class TextDoc:
@@ -2241,7 +2260,7 @@ else:
 
                 text.append(TextDoc(content, metadata))
 
-        return {"images": b64, "texts": text}
+        return {"images": b64_images, "texts": text}
     
     def build_prompt(kwargs):
         docs = kwargs["context"]
@@ -2300,9 +2319,12 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         }]
 
         # ✅ CONVERT IMAGES TO JPEG before sending to Vision API
-        for image in docs["images"]:
+        for image_data in docs["images"]:
+            # ✅ ATUALIZADO: images agora são dicts com base64 + metadata
+            image_base64 = image_data["base64"]  # Extrair base64
+
             # Convert to JPEG (handles TIFF, BMP, etc.)
-            jpeg_image, success = convert_image_to_jpeg_base64(image)
+            jpeg_image, success = convert_image_to_jpeg_base64(image_base64)
             if success:
                 prompt_content.append({
                     "type": "image_url",
