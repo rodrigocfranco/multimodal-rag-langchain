@@ -1927,6 +1927,128 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 "error": str(e)
             }), 500
 
+    @app.route('/clean-orphans', methods=['POST'])
+    def clean_orphans():
+        """
+        🧹 LIMPA CHUNKS ÓRFÃOS (filename=None) DO VECTORSTORE
+
+        Remove chunks antigos que foram criados sem campo 'filename'.
+        Esses chunks órfãos causam problema de "documentos fantasma".
+        """
+        global _last_docstore_mtime, _cached_retriever
+
+        print("\n" + "=" * 70)
+        print("🧹 LIMPEZA DE CHUNKS ÓRFÃOS")
+        print("=" * 70)
+
+        try:
+            # 1. Buscar TODOS os chunks
+            print("\n1️⃣ Buscando todos os chunks...")
+            all_results = vectorstore.get(include=['metadatas'])
+            total_chunks = len(all_results['ids'])
+            print(f"   ✓ Total: {total_chunks}")
+
+            # 2. Identificar órfãos
+            print("\n2️⃣ Identificando órfãos...")
+            orphan_ids = []
+            valid_chunks = 0
+
+            from collections import Counter
+            orphan_sources = []
+
+            for i, meta in enumerate(all_results.get('metadatas', [])):
+                filename = meta.get('filename')
+
+                if filename is None or filename == '':
+                    orphan_ids.append(all_results['ids'][i])
+                    orphan_sources.append(meta.get('source', 'N/A'))
+                else:
+                    valid_chunks += 1
+
+            print(f"   ✓ Válidos: {valid_chunks}")
+            print(f"   ⚠️  Órfãos: {len(orphan_ids)}")
+
+            if len(orphan_ids) == 0:
+                return jsonify({
+                    "success": True,
+                    "message": "Nenhum chunk órfão encontrado!",
+                    "total_chunks": total_chunks,
+                    "orphans_deleted": 0,
+                    "valid_chunks": valid_chunks
+                })
+
+            # Estatísticas
+            source_counts = Counter(orphan_sources)
+            print("\n   Órfãos por source:")
+            for source, count in source_counts.most_common(5):
+                print(f"      - {source}: {count}")
+
+            # 3. Deletar do vectorstore
+            print(f"\n3️⃣ Deletando {len(orphan_ids)} chunks órfãos...")
+            vectorstore.delete(ids=orphan_ids)
+            print(f"   ✓ Deletados do Chroma")
+
+            # 4. Deletar do docstore
+            print("\n4️⃣ Limpando docstore...")
+            docstore_path = f"{persist_directory}/docstore.pkl"
+            deleted_from_docstore = 0
+
+            if os.path.exists(docstore_path):
+                with open(docstore_path, 'rb') as f:
+                    docstore = pickle.load(f)
+
+                for chunk_id in orphan_ids:
+                    if chunk_id in docstore:
+                        del docstore[chunk_id]
+                        deleted_from_docstore += 1
+
+                with open(docstore_path, 'wb') as f:
+                    pickle.dump(docstore, f)
+
+                # Invalidar cache
+                os.utime(docstore_path, None)
+                _last_docstore_mtime = None
+                _cached_retriever = None
+
+                print(f"   ✓ {deleted_from_docstore} deletados do docstore")
+                print(f"   ✓ Cache invalidado")
+
+            # 5. Verificar
+            print("\n5️⃣ Verificando...")
+            all_after = vectorstore.get(include=['metadatas'])
+            total_after = len(all_after['ids'])
+
+            orphans_remaining = sum(
+                1 for meta in all_after.get('metadatas', [])
+                if meta.get('filename') is None or meta.get('filename') == ''
+            )
+
+            print(f"   ✓ Antes: {total_chunks}")
+            print(f"   ✓ Depois: {total_after}")
+            print(f"   ✓ Deletados: {total_chunks - total_after}")
+            print(f"   ✓ Órfãos restantes: {orphans_remaining}")
+            print("=" * 70 + "\n")
+
+            return jsonify({
+                "success": True,
+                "message": f"Limpeza concluída! {len(orphan_ids)} chunks órfãos removidos.",
+                "total_chunks_before": total_chunks,
+                "total_chunks_after": total_after,
+                "orphans_deleted": len(orphan_ids),
+                "orphans_remaining": orphans_remaining,
+                "deleted_from_docstore": deleted_from_docstore,
+                "orphan_sources": dict(source_counts.most_common(10))
+            })
+
+        except Exception as e:
+            print(f"❌ Erro: {str(e)}")
+            print("=" * 70 + "\n")
+
+            return jsonify({
+                "success": False,
+                "error": str(e)
+            }), 500
+
     print("=" * 60)
     print("🌐 API COM RERANKER rodando em http://localhost:5001")
     print("=" * 60)
