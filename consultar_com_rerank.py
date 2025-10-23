@@ -796,6 +796,9 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                     "total_docs_indexed": 0
                 }), 404
 
+            # ✅ Acessar vectorstore global para busca de imagens
+            global vectorstore
+
             # 🖼️ WRAPPER: Adiciona imagens APÓS Cohere Rerank (evita que sejam descartadas)
             def retriever_with_post_rerank_images(question):
                 """Executa retriever E força inclusão de imagens APÓS o rerank"""
