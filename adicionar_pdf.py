@@ -1037,6 +1037,7 @@ for i, summary in enumerate(text_summaries):
             "doc_id": doc_id,
             "pdf_id": pdf_id,  # ✅ ID do PDF
             "source": pdf_filename,
+            "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
             "type": "text",
             "index": i,
             "page_number": page_num,
@@ -1117,6 +1118,7 @@ for i, summary in enumerate(table_summaries):
             "doc_id": doc_id,
             "pdf_id": pdf_id,  # ✅ ID do PDF
             "source": pdf_filename,
+            "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
             "type": "table",
             "index": i,
             "page_number": page_num,
@@ -1178,6 +1180,7 @@ for i, summary in enumerate(image_summaries):
             "doc_id": doc_id,
             "pdf_id": pdf_id,  # ✅ ID do PDF
             "source": pdf_filename,
+            "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
             "type": "image",
             "index": i,
             "page_number": None,  # Imagens geralmente não têm page_number
