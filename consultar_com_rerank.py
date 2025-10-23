@@ -909,6 +909,60 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             # 🧹 CLEANUP: Se clean_orphans=true, limpar chunks órfãos
             clean_orphans_param = request.args.get('clean_orphans', '').lower() == 'true'
             force_clean_metadata = request.args.get('force_clean_metadata', '').lower() == 'true'
+            force_clean_all = request.args.get('force_clean_all', '').lower() == 'true'
+
+            # 🗑️ FORCE CLEAN ALL: Limpar TODOS os chunks quando metadata.pkl estiver vazio
+            if force_clean_all:
+                # Verificar se metadata.pkl está vazio
+                metadata_path = f"{persist_directory}/metadata.pkl"
+                metadata = {}
+                if os.path.exists(metadata_path):
+                    with open(metadata_path, 'rb') as f:
+                        metadata = pickle.load(f)
+
+                total_registered_docs = len(metadata.get('documents', {}))
+
+                # Se não há documentos registrados, limpar TUDO
+                if total_registered_docs == 0:
+                    all_results = vectorstore.get(include=['metadatas'])
+                    all_chunk_ids = all_results['ids']
+
+                    if len(all_chunk_ids) > 0:
+                        print(f"🗑️ FORCE CLEAN ALL: Deletando {len(all_chunk_ids)} chunks (metadata.pkl vazio)")
+
+                        # 1. Deletar do Chroma
+                        vectorstore.delete(ids=all_chunk_ids)
+
+                        # 2. Limpar docstore
+                        docstore_path = f"{persist_directory}/docstore.pkl"
+                        if os.path.exists(docstore_path):
+                            empty_docstore = {}
+                            with open(docstore_path, 'wb') as f:
+                                pickle.dump(empty_docstore, f)
+                            os.utime(docstore_path, None)
+
+                        # 3. Invalidar cache
+                        global _last_docstore_mtime, _cached_retriever
+                        _last_docstore_mtime = None
+                        _cached_retriever = None
+
+                        return jsonify({
+                            "success": True,
+                            "message": f"TODOS os {len(all_chunk_ids)} chunks foram deletados (metadata.pkl estava vazio)",
+                            "deleted_chunks": len(all_chunk_ids),
+                            "action": "force_clean_all"
+                        })
+                    else:
+                        return jsonify({
+                            "success": True,
+                            "message": "Nenhum chunk para deletar (já está limpo)",
+                            "action": "force_clean_all"
+                        })
+                else:
+                    return jsonify({
+                        "error": "force_clean_all só funciona quando metadata.pkl está vazio",
+                        "registered_docs": total_registered_docs
+                    }), 400
 
             # 🗑️ FORCE CLEAN METADATA: Limpar metadata.pkl quando vectorstore está vazio
             if force_clean_metadata:
