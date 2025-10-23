@@ -904,6 +904,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
     @app.route('/debug-volume', methods=['GET'])
     def debug_volume():
         """DEBUG: Verificar se o volume tem arquivos + LIMPAR ÓRFÃOS com ?clean_orphans=true"""
+        global _last_docstore_mtime, _cached_retriever
         import os
         try:
             # 🧹 CLEANUP: Se clean_orphans=true, limpar chunks órfãos
@@ -993,7 +994,6 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                     }), 400
 
             if clean_orphans_param:
-                global _last_docstore_mtime, _cached_retriever
                 print("\n" + "=" * 70)
                 print("🧹 LIMPEZA DE CHUNKS ÓRFÃOS (via debug-volume)")
                 print("=" * 70)
