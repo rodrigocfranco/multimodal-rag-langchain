@@ -1544,7 +1544,14 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         try:
             result = delete_doc_func(pdf_id, persist_directory)
 
+            # ✅ CRÍTICO: Invalidar cache após deleção bem-sucedida
             if result['status'] == 'success':
+                global _last_docstore_mtime, _cached_retriever
+                _last_docstore_mtime = None  # Força rebuild do retriever
+                _cached_retriever = None     # Limpa cache
+
+                print(f"   ✓ Cache invalidado após deleção de {result.get('filename', pdf_id)}")
+
                 return jsonify(result), 200
             elif result['status'] == 'not_found':
                 return jsonify(result), 404
