@@ -1325,7 +1325,23 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             const res = await fetch('/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});
             const j = await res.json();
             if(res.ok){
-              aEl.innerHTML = 'A: ' + (j.answer||'(sem resposta)') + (j.sources && j.sources.length ? '<div class="muted">Fontes: ' + j.sources.join(', ') + '</div>' : '');
+              let html = 'A: ' + (j.answer||'(sem resposta)');
+
+              // ✅ NOVO: Adicionar imagens se presentes
+              if(j.images && j.images.length > 0){
+                html += '<div style="margin-top:16px;"><strong>📸 Imagens (' + j.images.length + '):</strong></div>';
+                j.images.forEach((img, idx) => {
+                  const summary = img.metadata?.summary || 'Imagem ' + (idx+1);
+                  html += '<div style="margin:12px 0;"><img src="data:image/jpeg;base64,' + img.base64 + '" style="max-width:100%;border:1px solid #ddd;border-radius:8px;" alt="' + summary + '"><div class="muted" style="margin-top:4px;font-style:italic;">' + summary + '</div></div>';
+                });
+              }
+
+              // Fontes
+              if(j.sources && j.sources.length){
+                html += '<div class="muted">Fontes: ' + j.sources.join(', ') + '</div>';
+              }
+
+              aEl.innerHTML = html;
             } else {
               aEl.innerHTML = 'ERRO: ' + (j.error||'Falha');
             }
