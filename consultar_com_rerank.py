@@ -606,23 +606,35 @@ if modo_api:
                 content = str(doc)
                 metadata = {}
 
-            # Tentar identificar se é imagem (base64)
-            try:
-                b64decode(content)
-                # ✅ NOVO: Incluir metadata junto com base64
-                image_data = {
-                    "base64": content,
-                    "metadata": metadata
-                }
-                b64_images.append(image_data)
-            except:
-                # Criar objeto com .text para compatibilidade
-                class TextDoc:
-                    def __init__(self, text_content, meta):
-                        self.text = text_content
-                        self.metadata = meta
+            # ✅ FIX: Identificar imagens pelo metadata.type, NÃO por b64decode
+            # (imagens têm page_content=summary, não base64!)
+            if metadata.get('type') == 'image':
+                # Buscar imagem real do docstore usando doc_id
+                doc_id = metadata.get('doc_id')
+                if doc_id:
+                    try:
+                        # Retriever global tem acesso ao docstore
+                        image_obj = retriever.docstore.mget([doc_id])[0]
+                        if image_obj:
+                            # Converter Image object para base64
+                            image_base64 = image_to_base64(image_obj)
+                            image_data = {
+                                "base64": image_base64,
+                                "metadata": metadata
+                            }
+                            b64_images.append(image_data)
+                            continue
+                    except Exception as e:
+                        print(f"   ⚠️ Erro ao buscar imagem {doc_id}: {str(e)[:100]}")
 
-                text.append(TextDoc(content, metadata))
+            # Se não é imagem ou falhou ao buscar, tratar como texto
+            # Criar objeto com .text para compatibilidade
+            class TextDoc:
+                def __init__(self, text_content, meta):
+                    self.text = text_content
+                    self.metadata = meta
+
+            text.append(TextDoc(content, metadata))
 
         return {"images": b64_images, "texts": text}
     
@@ -3024,23 +3036,35 @@ else:
                 content = str(doc)
                 metadata = {}
 
-            # Tentar identificar se é imagem (base64)
-            try:
-                b64decode(content)
-                # ✅ NOVO: Incluir metadata junto com base64
-                image_data = {
-                    "base64": content,
-                    "metadata": metadata
-                }
-                b64_images.append(image_data)
-            except:
-                # Criar objeto com .text para compatibilidade
-                class TextDoc:
-                    def __init__(self, text_content, meta):
-                        self.text = text_content
-                        self.metadata = meta
+            # ✅ FIX: Identificar imagens pelo metadata.type, NÃO por b64decode
+            # (imagens têm page_content=summary, não base64!)
+            if metadata.get('type') == 'image':
+                # Buscar imagem real do docstore usando doc_id
+                doc_id = metadata.get('doc_id')
+                if doc_id:
+                    try:
+                        # Retriever global tem acesso ao docstore
+                        image_obj = retriever.docstore.mget([doc_id])[0]
+                        if image_obj:
+                            # Converter Image object para base64
+                            image_base64 = image_to_base64(image_obj)
+                            image_data = {
+                                "base64": image_base64,
+                                "metadata": metadata
+                            }
+                            b64_images.append(image_data)
+                            continue
+                    except Exception as e:
+                        print(f"   ⚠️ Erro ao buscar imagem {doc_id}: {str(e)[:100]}")
 
-                text.append(TextDoc(content, metadata))
+            # Se não é imagem ou falhou ao buscar, tratar como texto
+            # Criar objeto com .text para compatibilidade
+            class TextDoc:
+                def __init__(self, text_content, meta):
+                    self.text = text_content
+                    self.metadata = meta
+
+            text.append(TextDoc(content, metadata))
 
         return {"images": b64_images, "texts": text}
     
