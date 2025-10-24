@@ -997,14 +997,22 @@ vectorstore = Chroma(
 )
 
 docstore_path = f"{persist_directory}/docstore.pkl"
+
+# ✅ CRÍTICO: Criar InMemoryStore e carregar dados ANTES de passar ao retriever
 store = InMemoryStore()
 if os.path.exists(docstore_path):
     with open(docstore_path, 'rb') as f:
-        store.store = pickle.load(f)
+        loaded_data = pickle.load(f)
+        # Garantir que carregamos no store.store (dict interno)
+        if isinstance(loaded_data, dict):
+            store.store = loaded_data
+        else:
+            print(f"   ⚠️  Docstore carregado não é dict: {type(loaded_data)}")
+            store.store = {}
 
 retriever = MultiVectorRetriever(
     vectorstore=vectorstore,
-    docstore=store,
+    docstore=store,  # Passa store já carregado
     id_key="doc_id",
 )
 
@@ -1211,11 +1219,22 @@ try:
     
     # Salvar
     print(f"   Salvando docstore...")
+    print(f"   DEBUG: retriever.docstore id = {id(retriever.docstore)}")
+    print(f"   DEBUG: store id = {id(store)}")
+    print(f"   DEBUG: São o mesmo objeto? {retriever.docstore is store}")
+    print(f"   DEBUG: retriever.docstore.store tem {len(retriever.docstore.store)} itens")
+    print(f"   DEBUG: store.store tem {len(store.store)} itens")
+
     with open(docstore_path, 'wb') as f:
         # ✅ CRÍTICO: Salvar retriever.docstore.store (não store.store)
         # retriever.docstore é o que foi atualizado por mset()
-        pickle.dump(dict(retriever.docstore.store), f)
-    print(f"   ✓ Docstore salvo ({len(retriever.docstore.store)} itens)")
+        data_to_save = dict(retriever.docstore.store)
+        pickle.dump(data_to_save, f)
+        print(f"   DEBUG: Salvando {len(data_to_save)} itens no pickle")
+
+    # Verificar que foi salvo
+    file_size = os.path.getsize(docstore_path)
+    print(f"   ✓ Docstore salvo ({len(retriever.docstore.store)} itens, {file_size} bytes)")
     
     # Metadados
     metadata_path = f"{persist_directory}/metadata.pkl"
