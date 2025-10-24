@@ -181,7 +181,7 @@ if modo_api:
         return len(keywords_found) > 0, keywords_found
 
 
-    def force_include_images(question, base_results, vectorstore_instance, max_images=3):
+    def force_include_images(question, base_results, vectorstore_instance, max_images=5):
         """
         Força inclusão de imagens relevantes quando query é sobre conteúdo visual.
 
@@ -222,7 +222,7 @@ if modo_api:
                 try:
                     images = vectorstore_instance.similarity_search(
                         img_query,
-                        k=20,  # Buscar mais para aumentar chances
+                        k=30,  # Buscar mais para cobrir múltiplos documentos
                         filter={"type": "image"}
                     )
 
