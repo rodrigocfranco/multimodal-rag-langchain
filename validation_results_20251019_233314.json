@@ -1,0 +1,899 @@
+{
+  "summary": {
+    "total_queries": 30,
+    "avg_score": 0.0,
+    "avg_latency": 0.47,
+    "distribution": {
+      "excelente": 0,
+      "bom": 0,
+      "parcial": 0,
+      "incompleto": 0,
+      "falhou": 0,
+      "nao_respondeu": 30
+    },
+    "by_category": {
+      "Diabetes": 0.0,
+      "Nefrite Lúpica": 0.0,
+      "MGUS": 0.0,
+      "SLT": 0.0,
+      "Prostatite": 0.0,
+      "Cross-Document": 0.0
+    },
+    "by_difficulty": {
+      "Fácil": 0.0,
+      "Médio": 0.0,
+      "Difícil": 0.0,
+      "Muito Difícil": 0.0
+    }
+  },
+  "results": [
+    {
+      "id": "D1",
+      "category": "Diabetes - Retrieval Direto",
+      "question": "Quais são os critérios de muito alto risco cardiovascular segundo a diretriz brasileira de diabetes 2025?",
+      "expected_topics": [
+        "3 ou mais fatores",
+        "Hipercolesterolemia Familiar",
+        "albuminúria >300",
+        "TFG <30"
+      ],
+      "difficulty": "Fácil",
+      "document": "Diretriz Brasileira de Diabetes 2025",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.52,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "3 ou mais fatores",
+          "Hipercolesterolemia Familiar",
+          "albuminúria >300",
+          "TFG <30"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "D2",
+      "category": "Diabetes - Valores Numéricos",
+      "question": "Qual o valor de HbA1c que define controle glicêmico inadequado e indica necessidade de intensificação terapêutica?",
+      "expected_topics": [
+        "HbA1c",
+        ">7%",
+        "intensificação"
+      ],
+      "difficulty": "Médio",
+      "document": "Diretriz Brasileira de Diabetes 2025",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.44,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "HbA1c",
+          ">7%",
+          "intensificação"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "D3",
+      "category": "Diabetes - Contraindicações",
+      "question": "Em quais valores de TFG a Metformina é contraindicada ou requer ajuste de dose?",
+      "expected_topics": [
+        "TFG <30",
+        "contraindicada",
+        "TFG 30-45",
+        "ajuste"
+      ],
+      "difficulty": "Médio",
+      "document": "Diretriz Brasileira de Diabetes 2025",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.53,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "TFG <30",
+          "contraindicada",
+          "TFG 30-45",
+          "ajuste"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "D4",
+      "category": "Diabetes - Tratamento Complexo",
+      "question": "Para pacientes com diabetes tipo 2 e risco cardiovascular muito alto, quais classes de antidiabéticos são preferenciais além da metformina?",
+      "expected_topics": [
+        "iSGLT2",
+        "AR GLP-1",
+        "benefício cardiovascular"
+      ],
+      "difficulty": "Médio",
+      "document": "Diretriz Brasileira de Diabetes 2025",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.52,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "iSGLT2",
+          "AR GLP-1",
+          "benefício cardiovascular"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "D5",
+      "category": "Diabetes - Multi-hop",
+      "question": "Se um paciente tem albuminúria de 350 mg/g e TFG de 42 ml/min, qual sua estratificação de risco e qual medicamento pode estar contraindicado?",
+      "expected_topics": [
+        "muito alto risco",
+        "albuminúria >300",
+        "TFG <45",
+        "metformina"
+      ],
+      "difficulty": "Difícil",
+      "document": "Diretriz Brasileira de Diabetes 2025",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.5,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "muito alto risco",
+          "albuminúria >300",
+          "TFG <45",
+          "metformina"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "D6",
+      "category": "Diabetes - Negação",
+      "question": "Quando NÃO usar insulina como primeira linha no diabetes tipo 2?",
+      "expected_topics": [
+        "primeira linha",
+        "metformina",
+        "HbA1c <9%"
+      ],
+      "difficulty": "Difícil",
+      "document": "Diretriz Brasileira de Diabetes 2025",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.45,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "primeira linha",
+          "metformina",
+          "HbA1c <9%"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "D7",
+      "category": "Diabetes - Interpretação Coloquial",
+      "question": "Qual remédio é melhor para quem é gordo e tem diabetes?",
+      "expected_topics": [
+        "obesidade",
+        "IMC",
+        "iSGLT2",
+        "AR GLP-1",
+        "perda de peso"
+      ],
+      "difficulty": "Difícil",
+      "document": "Diretriz Brasileira de Diabetes 2025",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.46,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "obesidade",
+          "IMC",
+          "iSGLT2",
+          "AR GLP-1",
+          "perda de peso"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "D8",
+      "category": "Diabetes - Relação Entre Conceitos",
+      "question": "Qual a relação entre albuminúria e risco cardiovascular em pacientes com diabetes?",
+      "expected_topics": [
+        "marcador",
+        "lesão endotelial",
+        "risco cardiovascular",
+        "muito alto"
+      ],
+      "difficulty": "Difícil",
+      "document": "Diretriz Brasileira de Diabetes 2025",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.51,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "marcador",
+          "lesão endotelial",
+          "risco cardiovascular",
+          "muito alto"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "NL1",
+      "category": "Nefrite Lúpica - Classificação",
+      "question": "Qual a classificação simplificada de nefrite lúpica segundo a ISN/RPS?",
+      "expected_topics": [
+        "classe I",
+        "classe II",
+        "classe III",
+        "classe IV",
+        "classe V",
+        "ISN/RPS"
+      ],
+      "difficulty": "Fácil",
+      "document": "Nefrite Lúpica",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.44,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "classe I",
+          "classe II",
+          "classe III",
+          "classe IV",
+          "classe V",
+          "ISN/RPS"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "NL2",
+      "category": "Nefrite Lúpica - Diagnóstico",
+      "question": "Quais os achados histopatológicos que definem nefrite lúpica classe IV?",
+      "expected_topics": [
+        "glomerulonefrite proliferativa difusa",
+        "50%",
+        "glomérulos"
+      ],
+      "difficulty": "Médio",
+      "document": "Nefrite Lúpica",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.45,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "glomerulonefrite proliferativa difusa",
+          "50%",
+          "glomérulos"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "NL3",
+      "category": "Nefrite Lúpica - Tratamento",
+      "question": "Qual o tratamento de indução padrão para nefrite lúpica proliferativa?",
+      "expected_topics": [
+        "micofenolato",
+        "ciclofosfamida",
+        "corticoides"
+      ],
+      "difficulty": "Médio",
+      "document": "Nefrite Lúpica",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.61,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "micofenolato",
+          "ciclofosfamida",
+          "corticoides"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "NL4",
+      "category": "Nefrite Lúpica - Prognóstico",
+      "question": "Quais fatores prognósticos indicam pior evolução na nefrite lúpica?",
+      "expected_topics": [
+        "creatinina elevada",
+        "hipertensão",
+        "fibrose intersticial",
+        "raça negra"
+      ],
+      "difficulty": "Médio",
+      "document": "Nefrite Lúpica",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.44,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "creatinina elevada",
+          "hipertensão",
+          "fibrose intersticial",
+          "raça negra"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "NL5",
+      "category": "Nefrite Lúpica - Diferenciação",
+      "question": "Qual a diferença entre nefrite lúpica classe III e classe IV?",
+      "expected_topics": [
+        "focal",
+        "difusa",
+        "<50%",
+        ">50%",
+        "glomérulos"
+      ],
+      "difficulty": "Difícil",
+      "document": "Nefrite Lúpica",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.51,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "focal",
+          "difusa",
+          "<50%",
+          ">50%",
+          "glomérulos"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "NL6",
+      "category": "Nefrite Lúpica - Multi-hop",
+      "question": "Por que pacientes com nefrite lúpica classe V têm proteinúria maciça mas preservam melhor a função renal inicialmente?",
+      "expected_topics": [
+        "membranosa",
+        "podócitos",
+        "não proliferativa",
+        "síndrome nefrótica"
+      ],
+      "difficulty": "Muito Difícil",
+      "document": "Nefrite Lúpica",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.51,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "membranosa",
+          "podócitos",
+          "não proliferativa",
+          "síndrome nefrótica"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "MGUS1",
+      "category": "MGUS - Diagnóstico",
+      "question": "Quais os critérios diagnósticos para MGUS?",
+      "expected_topics": [
+        "proteína M",
+        "<3 g/dL",
+        "plasmócitos <10%",
+        "ausência de dano orgânico"
+      ],
+      "difficulty": "Fácil",
+      "document": "MGUS",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.46,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "proteína M",
+          "<3 g/dL",
+          "plasmócitos <10%",
+          "ausência de dano orgânico"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "MGUS2",
+      "category": "MGUS - Risco de Progressão",
+      "question": "Qual o risco de progressão de MGUS para mieloma múltiplo?",
+      "expected_topics": [
+        "1% ao ano",
+        "25 anos",
+        "risco cumulativo"
+      ],
+      "difficulty": "Médio",
+      "document": "MGUS",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.44,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "1% ao ano",
+          "25 anos",
+          "risco cumulativo"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "MGUS3",
+      "category": "MGUS - Fatores de Risco",
+      "question": "Quais fatores de risco indicam maior probabilidade de progressão de MGUS?",
+      "expected_topics": [
+        "proteína M >1.5",
+        "IgA ou IgM",
+        "relação kappa/lambda alterada"
+      ],
+      "difficulty": "Médio",
+      "document": "MGUS",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.44,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "proteína M >1.5",
+          "IgA ou IgM",
+          "relação kappa/lambda alterada"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "MGUS4",
+      "category": "MGUS - Seguimento",
+      "question": "Como deve ser o seguimento de pacientes com MGUS de baixo risco?",
+      "expected_topics": [
+        "6 meses",
+        "anual",
+        "eletroforese",
+        "sem tratamento"
+      ],
+      "difficulty": "Médio",
+      "document": "MGUS",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.45,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "6 meses",
+          "anual",
+          "eletroforese",
+          "sem tratamento"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "MGUS5",
+      "category": "MGUS - Diferenciação",
+      "question": "Qual a diferença entre MGUS e mieloma múltiplo smoldering?",
+      "expected_topics": [
+        "proteína M",
+        "plasmócitos",
+        "10%",
+        "dano orgânico",
+        "CRAB"
+      ],
+      "difficulty": "Difícil",
+      "document": "MGUS",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.48,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "proteína M",
+          "plasmócitos",
+          "10%",
+          "dano orgânico",
+          "CRAB"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "SLT1",
+      "category": "SLT - Definição",
+      "question": "O que caracteriza a síndrome de lise tumoral?",
+      "expected_topics": [
+        "hiperuricemia",
+        "hipercalemia",
+        "hiperfosfatemia",
+        "hipocalcemia",
+        "quimioterapia"
+      ],
+      "difficulty": "Fácil",
+      "document": "Síndrome de Lise Tumoral",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.5,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "hiperuricemia",
+          "hipercalemia",
+          "hiperfosfatemia",
+          "hipocalcemia",
+          "quimioterapia"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "SLT2",
+      "category": "SLT - Fisiopatologia",
+      "question": "Qual o mecanismo fisiopatológico da hipocalcemia na síndrome de lise tumoral?",
+      "expected_topics": [
+        "hiperfosfatemia",
+        "precipitação",
+        "cálcio-fosfato",
+        "quelação"
+      ],
+      "difficulty": "Médio",
+      "document": "Síndrome de Lise Tumoral",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.45,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "hiperfosfatemia",
+          "precipitação",
+          "cálcio-fosfato",
+          "quelação"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "SLT3",
+      "category": "SLT - Prevenção",
+      "question": "Como prevenir síndrome de lise tumoral em pacientes de alto risco?",
+      "expected_topics": [
+        "hidratação",
+        "alopurinol",
+        "rasburicase",
+        "monitorização"
+      ],
+      "difficulty": "Médio",
+      "document": "Síndrome de Lise Tumoral",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.47,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "hidratação",
+          "alopurinol",
+          "rasburicase",
+          "monitorização"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "SLT4",
+      "category": "SLT - Complicações",
+      "question": "Qual a complicação mais grave da síndrome de lise tumoral e como preveni-la?",
+      "expected_topics": [
+        "insuficiência renal aguda",
+        "precipitação",
+        "hidratação",
+        "diurese"
+      ],
+      "difficulty": "Médio",
+      "document": "Síndrome de Lise Tumoral",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.48,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "insuficiência renal aguda",
+          "precipitação",
+          "hidratação",
+          "diurese"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "SLT5",
+      "category": "SLT - Tratamento Específico",
+      "question": "Quando usar rasburicase em vez de alopurinol na síndrome de lise tumoral?",
+      "expected_topics": [
+        "alto risco",
+        "hiperuricemia grave",
+        "deficiência G6PD",
+        "contraindicação"
+      ],
+      "difficulty": "Difícil",
+      "document": "Síndrome de Lise Tumoral",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.46,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "alto risco",
+          "hiperuricemia grave",
+          "deficiência G6PD",
+          "contraindicação"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "PROST1",
+      "category": "Prostatite - Classificação",
+      "question": "Quais os tipos de prostatite segundo a classificação NIH?",
+      "expected_topics": [
+        "tipo I",
+        "tipo II",
+        "tipo III",
+        "tipo IV",
+        "aguda",
+        "crônica"
+      ],
+      "difficulty": "Fácil",
+      "document": "Prostatite",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.45,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "tipo I",
+          "tipo II",
+          "tipo III",
+          "tipo IV",
+          "aguda",
+          "crônica"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "PROST2",
+      "category": "Prostatite - Diagnóstico",
+      "question": "Como diferenciar prostatite bacteriana de síndrome de dor pélvica crônica?",
+      "expected_topics": [
+        "cultura",
+        "leucócitos",
+        "EPS",
+        "VB3",
+        "Meares-Stamey"
+      ],
+      "difficulty": "Médio",
+      "document": "Prostatite",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.43,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "cultura",
+          "leucócitos",
+          "EPS",
+          "VB3",
+          "Meares-Stamey"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "PROST3",
+      "category": "Prostatite - Tratamento",
+      "question": "Qual o tratamento de escolha para prostatite bacteriana aguda?",
+      "expected_topics": [
+        "fluoroquinolona",
+        "trimetoprim-sulfametoxazol",
+        "4-6 semanas"
+      ],
+      "difficulty": "Médio",
+      "document": "Prostatite",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.45,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "fluoroquinolona",
+          "trimetoprim-sulfametoxazol",
+          "4-6 semanas"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "PROST4",
+      "category": "Prostatite - Crônica",
+      "question": "Por que a prostatite crônica é difícil de tratar e qual a duração recomendada de antibiótico?",
+      "expected_topics": [
+        "penetração prostática",
+        "barreira hematoprostática",
+        "6-12 semanas"
+      ],
+      "difficulty": "Difícil",
+      "document": "Prostatite",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.46,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "penetração prostática",
+          "barreira hematoprostática",
+          "6-12 semanas"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "CROSS1",
+      "category": "Cross-Document - Comparação",
+      "question": "Quais condições médicas nos documentos estão associadas a risco de insuficiência renal aguda?",
+      "expected_topics": [
+        "síndrome de lise tumoral",
+        "nefrite lúpica",
+        "diabetes com TFG baixa"
+      ],
+      "difficulty": "Muito Difícil",
+      "document": "Múltiplos",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.43,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "síndrome de lise tumoral",
+          "nefrite lúpica",
+          "diabetes com TFG baixa"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    },
+    {
+      "id": "CROSS2",
+      "category": "Cross-Document - Síntese",
+      "question": "Compare as estratégias de monitoramento de risco entre diabetes (risco cardiovascular) e MGUS (risco de progressão para mieloma)?",
+      "expected_topics": [
+        "estratificação",
+        "seguimento",
+        "fatores de risco",
+        "periodicidade"
+      ],
+      "difficulty": "Muito Difícil",
+      "document": "Múltiplos",
+      "answer": null,
+      "sources": [],
+      "chunks_used": 0,
+      "latency": 0.46,
+      "evaluation": {
+        "score": 0,
+        "found_topics": [],
+        "missing_topics": [
+          "estratificação",
+          "seguimento",
+          "fatores de risco",
+          "periodicidade"
+        ],
+        "status": "❌ NÃO RESPONDEU"
+      },
+      "error": "404 Client Error: Not Found for url: https://multimodal-rag-langchain-production.up.railway.app/query"
+    }
+  ]
+}

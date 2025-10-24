@@ -265,13 +265,19 @@ if modo_api:
         ) -> List[Document]:
             # 1. Retrieval normal
             docs = self.retriever.invoke(query)
+            print(f"   DEBUG DocumentConverter: retriever retornou {len(docs)} docs")
 
             # 2. Converter para Documents
             converted = []
-            for doc in docs:
+            for i, doc in enumerate(docs):
+                if i < 3:  # Só print dos primeiros 3 para não poluir
+                    print(f"   DEBUG doc {i}: type={type(doc).__name__}, hasattr page_content={hasattr(doc, 'page_content')}, hasattr text={hasattr(doc, 'text')}, is str={isinstance(doc, str)}")
+
                 # Converter para Document do LangChain
                 if hasattr(doc, 'page_content'):
                     converted.append(doc)
+                    if i < 3:
+                        print(f"      → Adicionado via page_content")
                 elif hasattr(doc, 'text'):
                     # Table ou CompositeElement → Document
                     # Converter metadata para dict
@@ -287,10 +293,18 @@ if modo_api:
                         page_content=doc.text,
                         metadata=metadata
                     ))
+                    if i < 3:
+                        print(f"      → Convertido via text")
                 elif isinstance(doc, str):
                     converted.append(Document(page_content=doc, metadata={}))
+                    if i < 3:
+                        print(f"      → Convertido de string")
                 else:
                     converted.append(Document(page_content=str(doc), metadata={}))
+                    if i < 3:
+                        print(f"      → Convertido via str(doc)")
+
+            print(f"   DEBUG DocumentConverter: converteu {len(converted)} de {len(docs)} docs")
 
             # 3. 🖼️ FORÇA INCLUSÃO DE IMAGENS se query for sobre imagens
             enhanced_results = force_include_images(
@@ -2727,13 +2741,19 @@ else:
         ) -> List[Document]:
             # 1. Retrieval normal
             docs = self.retriever.invoke(query)
+            print(f"   DEBUG DocumentConverter: retriever retornou {len(docs)} docs")
 
             # 2. Converter para Documents
             converted = []
-            for doc in docs:
+            for i, doc in enumerate(docs):
+                if i < 3:  # Só print dos primeiros 3 para não poluir
+                    print(f"   DEBUG doc {i}: type={type(doc).__name__}, hasattr page_content={hasattr(doc, 'page_content')}, hasattr text={hasattr(doc, 'text')}, is str={isinstance(doc, str)}")
+
                 # Converter para Document do LangChain
                 if hasattr(doc, 'page_content'):
                     converted.append(doc)
+                    if i < 3:
+                        print(f"      → Adicionado via page_content")
                 elif hasattr(doc, 'text'):
                     # Table ou CompositeElement → Document
                     # Converter metadata para dict
@@ -2749,10 +2769,18 @@ else:
                         page_content=doc.text,
                         metadata=metadata
                     ))
+                    if i < 3:
+                        print(f"      → Convertido via text")
                 elif isinstance(doc, str):
                     converted.append(Document(page_content=doc, metadata={}))
+                    if i < 3:
+                        print(f"      → Convertido de string")
                 else:
                     converted.append(Document(page_content=str(doc), metadata={}))
+                    if i < 3:
+                        print(f"      → Convertido via str(doc)")
+
+            print(f"   DEBUG DocumentConverter: converteu {len(converted)} de {len(docs)} docs")
 
             # 3. 🖼️ FORÇA INCLUSÃO DE IMAGENS se query for sobre imagens
             enhanced_results = force_include_images_terminal(
