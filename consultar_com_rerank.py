@@ -660,6 +660,8 @@ if modo_api:
         # Prompt RIGOROSO com INFERÊNCIA MODERADA: permite conexões lógicas entre chunks
         system_instruction = """Você é um assistente de pesquisa médica RIGOROSO com CAPACIDADE MULTIMODAL.
 
+⚠️ IDIOMA: SEMPRE responda em PORTUGUÊS BRASILEIRO. Todas as descrições, análises e referências devem estar em português.
+
 REGRAS CRÍTICAS:
 1. Responda APENAS com informações que estão no contexto fornecido abaixo
 2. NUNCA use conhecimento geral ou externo aos documentos
@@ -879,10 +881,10 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                     )
 
                     # Usar apenas a query - embeddings semânticos são inteligentes!
-                    print(f"      DEBUG: Buscando com filter={{'type': 'image'}}, k=30")
+                    print(f"      DEBUG: Buscando com filter={{'type': 'image'}}, k=10")
                     images = fresh_vectorstore.similarity_search(
                         question,
-                        k=30,  # Buscar mais imagens em contexto multi-doc
+                        k=10,  # Buscar top 10 imagens mais relevantes
                         filter={"type": "image"}
                     )
                     print(f"      DEBUG: {len(images)} imagens retornadas pela busca")
@@ -897,7 +899,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                         if doc_id and doc_id not in seen_doc_ids:
                             found_images.append(img)
                             seen_doc_ids.add(doc_id)
-                            if len(found_images) >= 5:  # Máximo 5 imagens
+                            if len(found_images) >= 3:  # Máximo 3 imagens por resposta
                                 break
 
                     if found_images:
@@ -3089,6 +3091,8 @@ else:
 
         # Prompt RIGOROSO com INFERÊNCIA MODERADA: permite conexões lógicas entre chunks
         system_instruction = """Você é um assistente de pesquisa médica RIGOROSO com CAPACIDADE MULTIMODAL.
+
+⚠️ IDIOMA: SEMPRE responda em PORTUGUÊS BRASILEIRO. Todas as descrições, análises e referências devem estar em português.
 
 REGRAS CRÍTICAS:
 1. Responda APENAS com informações que estão no contexto fornecido abaixo
