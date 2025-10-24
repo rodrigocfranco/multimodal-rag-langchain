@@ -145,18 +145,31 @@ if modo_api:
             (bool, list): (is_image_query, keywords_found)
         """
         image_patterns = [
+            # Padrões específicos com números
             r'\bfigura\s+\d+\b',  # "figura 1", "figura 2"
             r'\bfig\.?\s*\d+\b',   # "fig. 1", "fig 2"
             r'\btabela\s+\d+\b',   # "tabela 1"
-            r'\bfluxograma\b',
-            r'\balgorit?mo\b',
-            r'\bdiagrama\b',
-            r'\bgr[aá]fico\b',
-            r'\bimagem\b',
-            r'\bilustra[çc][ãa]o\b',
-            r'\bexplique\s+(a|o)\s+(figura|imagem|fluxograma|algoritmo|diagrama)\b',
-            r'\bdescreva\s+(a|o)\s+(figura|imagem|fluxograma)\b',
+
+            # Palavras-chave visuais (singular e plural)
+            r'\bfluxogramas?\b',   # "fluxograma" ou "fluxogramas"
+            r'\balgorit?mos?\b',   # "algoritmo" ou "algoritmos"
+            r'\bdiagramas?\b',     # "diagrama" ou "diagramas"
+            r'\bgr[aá]ficos?\b',   # "gráfico" ou "gráficos"
+            r'\bimagens?\b',       # "imagem" ou "imagens"
+            r'\bfiguras?\b',       # "figura" ou "figuras"
+            r'\bilustra[çc][õo]es?\b',  # "ilustração" ou "ilustrações"
+
+            # Verbos + conteúdo visual
+            r'\bexplique\s+(a|o|as|os)\s+(figura|imagem|fluxograma|algoritmo|diagrama)s?\b',
+            r'\bdescreva\s+(a|o|as|os)\s+(figura|imagem|fluxograma)s?\b',
+            r'\bmostr(e|a|ar)\s+(a|o|as|os)?\s*(figura|imagem|fluxograma)s?\b',
+            r'\btraga?\s+(a|o|as|os)?\s*(figura|imagem|fluxograma)s?\b',
             r'\bo\s+que\s+(mostra|diz|apresenta)\s+(a|o)\s+(figura|imagem)\b',
+
+            # Perguntas sobre presença de conteúdo visual
+            r'\bquais\s+(as\s+)?(figura|imagem|fluxograma|diagrama|tabela)s?\b',
+            r'\bh[aá]\s+(algum|alguma)?\s*(figura|imagem|fluxograma)s?\b',
+            r'\b(lista|liste)\s+(as\s+)?(figura|imagem)s?\b',
         ]
 
         keywords_found = []
