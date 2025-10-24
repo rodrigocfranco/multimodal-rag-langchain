@@ -183,37 +183,27 @@ if modo_api:
 
     def force_include_images(question, base_results, vectorstore_instance, max_images=5):
         """
-        Força inclusão de imagens relevantes quando query é sobre conteúdo visual.
+        SEMPRE busca e inclui imagens relevantes para enriquecer a resposta.
+
+        O sistema agora é proativo: para QUALQUER query, busca imagens relacionadas
+        e deixa o reranking decidir se elas são relevantes o suficiente para incluir.
 
         Args:
             question: Query do usuário
             base_results: Resultados do retrieval normal
             vectorstore_instance: ChromaDB vectorstore
-            max_images: Máximo de imagens a incluir (default: 3)
+            max_images: Máximo de imagens a incluir (default: 5)
 
         Returns:
-            list: Resultados combinados (base_results + imagens forçadas)
+            list: Resultados combinados (base_results + imagens relevantes)
         """
-        is_image_query, keywords = detect_image_query(question)
+        print(f"   🖼️ Buscando imagens relevantes para enriquecer resposta...")
 
-        if not is_image_query:
-            return base_results  # Não modifica se não for query sobre imagens
-
-        print(f"   🖼️ Query sobre imagens detectada! Keywords: {keywords}")
-
-        # Buscar DIRETAMENTE por imagens (filtro type='image')
+        # Buscar DIRETAMENTE por imagens usando a query original
+        # O embedding semântico vai encontrar imagens relacionadas ao tema
         try:
-            # Tentar múltiplas estratégias de busca
-            image_queries = [
-                question,  # Query original
-                " ".join(keywords) if keywords else "figura",  # Keywords extraídas
-                # Se pergunta sobre "figura 1", tentar também só "figura" (sem número)
-                re.sub(r'\s+\d+', '', question) if re.search(r'figura\s+\d+', question.lower()) else None,
-                "figura fluxograma algoritmo diagrama",  # Genérica
-            ]
-
-            # Remover None da lista
-            image_queries = [q for q in image_queries if q]
+            # Usar apenas a query original - o modelo de embeddings é inteligente!
+            image_queries = [question]
 
             found_images = []
             seen_doc_ids = set()
