@@ -1246,10 +1246,15 @@ try:
         pickle.dump(data_to_save, f)
         print(f"   DEBUG: Salvando {len(data_to_save)} itens no pickle")
 
+    # 🔥 FORCE CACHE INVALIDATION: Atualizar mtime explicitamente
+    import time
+    os.utime(docstore_path, (time.time(), time.time()))
+    print(f"   🔄 Mtime atualizado para forçar invalidação de cache")
+
     # Verificar que foi salvo
     file_size = os.path.getsize(docstore_path)
     print(f"   ✓ Docstore salvo ({len(retriever.docstore.store)} itens, {file_size} bytes)")
-    
+
     # Metadados
     metadata_path = f"{persist_directory}/metadata.pkl"
     metadata = {}
