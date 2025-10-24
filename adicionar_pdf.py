@@ -1107,9 +1107,10 @@ try:
             if not hasattr(original.metadata, 'source'):
                 original.metadata.source = pdf_filename
         
-        retriever.vectorstore.add_documents([doc])
+        # 🔥 CRITICAL FIX: Pass ids= to ensure vectorstore and docstore use SAME ID
+        retriever.vectorstore.add_documents([doc], ids=[doc_id])
         retriever.docstore.mset([(doc_id, original)])
-    
+
     print(f"   ✓ {len(text_summaries)} textos adicionados")
     
     print(f"   Adicionando {len(table_summaries)} tabelas ao vectorstore...")
@@ -1187,9 +1188,10 @@ try:
             if not hasattr(original.metadata, 'source'):
                 original.metadata.source = pdf_filename
         
-        retriever.vectorstore.add_documents([doc])
+        # 🔥 CRITICAL FIX: Pass ids= to ensure vectorstore and docstore use SAME ID
+        retriever.vectorstore.add_documents([doc], ids=[doc_id])
         retriever.docstore.mset([(doc_id, original)])
-    
+
     print(f"   ✓ {len(table_summaries)} tabelas adicionadas")
     
     print(f"   Adicionando {len(image_summaries)} imagens ao vectorstore...")
@@ -1224,7 +1226,8 @@ try:
     
         # Salvar imagem original no docstore (base64)
         print(f"      🖼️  Salvando imagem {i+1}/{len(image_summaries)}: doc_id={doc_id}, type={doc.metadata.get('type')}")
-        retriever.vectorstore.add_documents([doc])
+        # 🔥 CRITICAL FIX: Pass ids= to ensure vectorstore and docstore use SAME ID
+        retriever.vectorstore.add_documents([doc], ids=[doc_id])
         print(f"         ✓ Imagem adicionada ao vectorstore")
         retriever.docstore.mset([(doc_id, images[i])])
         print(f"         ✓ Imagem adicionada ao docstore")
