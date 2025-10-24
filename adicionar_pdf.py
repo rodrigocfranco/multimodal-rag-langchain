@@ -1298,12 +1298,12 @@ try:
     # Atualizar ou adicionar
     print(f"   Salvando metadados do documento...")
     metadata['documents'][pdf_id] = doc_info
-    
+
     with open(metadata_path, 'wb') as f:
         pickle.dump(metadata, f)
-    
-        print(f"   ✓ Metadados salvos")
-        print(f"   ✓ Adicionado!\n")
+
+    print(f"   ✓ Metadados salvos")
+    print(f"   ✓ Adicionado!\n")
 
 except Exception as e:
     # ===========================================================================
