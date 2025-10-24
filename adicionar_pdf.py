@@ -1212,8 +1212,10 @@ try:
     # Salvar
     print(f"   Salvando docstore...")
     with open(docstore_path, 'wb') as f:
-        pickle.dump(dict(store.store), f)
-    print(f"   ✓ Docstore salvo")
+        # ✅ CRÍTICO: Salvar retriever.docstore.store (não store.store)
+        # retriever.docstore é o que foi atualizado por mset()
+        pickle.dump(dict(retriever.docstore.store), f)
+    print(f"   ✓ Docstore salvo ({len(retriever.docstore.store)} itens)")
     
     # Metadados
     metadata_path = f"{persist_directory}/metadata.pkl"
@@ -1281,12 +1283,13 @@ except Exception as e:
 
         # 2. Deletar do docstore
         for chunk_id in chunk_ids:
-            if chunk_id in store.store:
-                del store.store[chunk_id]
+            if chunk_id in retriever.docstore.store:
+                del retriever.docstore.store[chunk_id]
 
         # Salvar docstore limpo
         with open(docstore_path, 'wb') as f:
-            pickle.dump(dict(store.store), f)
+            # ✅ CRÍTICO: Salvar retriever.docstore.store (não store.store)
+            pickle.dump(dict(retriever.docstore.store), f)
         print(f"   ✓ Docstore limpo")
 
         # 3. NÃO salvar metadata.pkl (não adicionar documento com erro)
