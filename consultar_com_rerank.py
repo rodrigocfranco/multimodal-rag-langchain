@@ -490,11 +490,16 @@ if modo_api:
         # Pegar timestamp de modificação do arquivo
         current_mtime = os.path.getmtime(docstore_path)
 
+        # 🔥 FIX: Se cache mostra 0 docs mas mtime mudou, forçar rebuild
+        force_rebuild = (_cached_num_docs == 0 and current_mtime != _last_docstore_mtime)
+
         # Verificar se docstore mudou OU cache vazio
-        if _cached_retriever is None or current_mtime != _last_docstore_mtime:
+        if _cached_retriever is None or current_mtime != _last_docstore_mtime or force_rebuild:
             print(f"🔄 Docstore mudou (ou primeira carga), reconstruindo retriever...")
             print(f"   Timestamp anterior: {_last_docstore_mtime}")
             print(f"   Timestamp atual: {current_mtime}")
+            if force_rebuild:
+                print(f"   🔥 FORCE REBUILD: Cache mostra 0 docs mas docstore existe")
 
             # Rebuild (operação pesada)
             _cached_retriever, _cached_num_docs = rebuild_retriever()
