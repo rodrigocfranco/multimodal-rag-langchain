@@ -125,6 +125,10 @@ if modo_api:
     # Carregar docstore inicial
     store = load_docstore()
 
+    # ✅ GLOBAL: Guardar referência ao docstore para parse_docs() acessar
+    global _docstore
+    _docstore = store
+
     base_retriever = MultiVectorRetriever(
         vectorstore=vectorstore,
         docstore=store,
@@ -613,8 +617,9 @@ if modo_api:
                 doc_id = metadata.get('doc_id')
                 if doc_id:
                     try:
-                        # Retriever global tem acesso ao docstore
-                        image_obj = retriever.docstore.mget([doc_id])[0]
+                        # Usar docstore global
+                        global _docstore
+                        image_obj = _docstore.mget([doc_id])[0]
                         if image_obj:
                             # Converter Image object para base64
                             image_base64 = image_to_base64(image_obj)
@@ -3043,8 +3048,9 @@ else:
                 doc_id = metadata.get('doc_id')
                 if doc_id:
                     try:
-                        # Retriever global tem acesso ao docstore
-                        image_obj = retriever.docstore.mget([doc_id])[0]
+                        # Usar docstore global
+                        global _docstore
+                        image_obj = _docstore.mget([doc_id])[0]
                         if image_obj:
                             # Converter Image object para base64
                             image_base64 = image_to_base64(image_obj)
