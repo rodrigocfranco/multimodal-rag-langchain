@@ -56,6 +56,17 @@ print("⏳ Aguarde 5-10 minutos...\n")
 
 # Vectorstore unificado - Railway Volume
 persist_directory = os.getenv("PERSIST_DIR", "./knowledge")
+persist_directory = os.path.abspath(persist_directory)  # Converter para caminho absoluto
+
+print(f"=" * 70)
+print(f"🔧 CONFIGURAÇÃO DE DIRETÓRIOS")
+print(f"=" * 70)
+print(f"Current working directory: {os.getcwd()}")
+print(f"PERSIST_DIR (env): {os.getenv('PERSIST_DIR', 'NOT SET')}")
+print(f"persist_directory (absoluto): {persist_directory}")
+print(f"Docstore será salvo em: {persist_directory}/docstore.pkl")
+print(f"=" * 70)
+print()
 
 # ===========================================================================
 # GERAR PDF_ID E VERIFICAR DUPLICATA
