@@ -420,6 +420,11 @@ if modo_api:
                 pass
 
         # 5. Reconstruir BM25 retriever
+        # Validar se há documentos antes de criar BM25
+        if len(all_docs_for_bm25) == 0:
+            print(f"   ⚠️  Nenhum documento para BM25 (rebuild) - retornando None")
+            return None, 0
+
         bm25_retriever = BM25Retriever.from_documents(all_docs_for_bm25)
         bm25_retriever.k = 40
 
@@ -513,6 +518,11 @@ if modo_api:
             pass
 
     print(f"   Documentos carregados para BM25: {len(all_docs_for_bm25)}")
+
+    # Validar se há documentos antes de criar BM25
+    if len(all_docs_for_bm25) == 0:
+        print(f"   ⚠️  Nenhum documento para BM25 - retornando None")
+        return None, 0
 
     # BM25 Retriever (keyword-based)
     bm25_retriever = BM25Retriever.from_documents(all_docs_for_bm25)
