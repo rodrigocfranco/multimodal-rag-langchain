@@ -2127,6 +2127,160 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             import traceback
             return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
+    @app.route('/debug-image-search', methods=['POST'])
+    def debug_image_search():
+        """DEBUG: Testar busca de imagens com filtro metadata type=image"""
+        try:
+            data = request.get_json()
+            question = data.get('question', 'síndrome de lise tumoral')
+            k = data.get('k', 30)
+
+            result = {
+                "question": question,
+                "k": k,
+                "persist_directory": persist_directory,
+                "analysis": {}
+            }
+
+            # 1. Verificar quantos chunks têm type=image no Chroma
+            print("=" * 70)
+            print("🔍 DEBUG IMAGE SEARCH")
+            print("=" * 70)
+            print(f"Question: {question}")
+            print(f"K: {k}")
+            print(f"Persist dir: {persist_directory}")
+
+            # Pegar TODOS os chunks e filtrar por type
+            all_results = vectorstore.get(include=['metadatas'])
+            all_ids = all_results['ids']
+            all_metadatas = all_results['metadatas']
+
+            # Contar por type
+            type_counts = {}
+            image_ids = []
+            for i, metadata in enumerate(all_metadatas):
+                chunk_type = metadata.get('type', 'unknown')
+                type_counts[chunk_type] = type_counts.get(chunk_type, 0) + 1
+                if chunk_type == 'image':
+                    image_ids.append(all_ids[i])
+
+            result["analysis"]["total_chunks"] = len(all_ids)
+            result["analysis"]["type_counts"] = type_counts
+            result["analysis"]["image_chunk_ids"] = image_ids
+            result["analysis"]["total_images_in_chroma"] = len(image_ids)
+
+            print(f"\nTotal chunks: {len(all_ids)}")
+            print(f"Type counts: {type_counts}")
+            print(f"Image chunks: {len(image_ids)}")
+
+            # 2. Testar similarity_search com filtro
+            print(f"\n🔍 Testando similarity_search com filter={{'type': 'image'}}, k={k}")
+
+            try:
+                images = vectorstore.similarity_search(
+                    question,
+                    k=k,
+                    filter={"type": "image"}
+                )
+
+                result["analysis"]["similarity_search_with_filter"] = {
+                    "success": True,
+                    "count": len(images),
+                    "images": []
+                }
+
+                print(f"✓ Retornou {len(images)} imagens")
+
+                for img in images[:5]:  # Primeiros 5
+                    img_info = {
+                        "doc_id": img.metadata.get('doc_id'),
+                        "type": img.metadata.get('type'),
+                        "filename": img.metadata.get('filename'),
+                        "pdf_id": img.metadata.get('pdf_id'),
+                        "content_preview": img.page_content[:200]
+                    }
+                    result["analysis"]["similarity_search_with_filter"]["images"].append(img_info)
+                    print(f"   - doc_id={img_info['doc_id']}, type={img_info['type']}, filename={img_info['filename']}")
+
+            except Exception as e:
+                result["analysis"]["similarity_search_with_filter"] = {
+                    "success": False,
+                    "error": str(e)
+                }
+                print(f"✗ Erro: {str(e)}")
+
+            # 3. Testar similarity_search SEM filtro para comparar
+            print(f"\n🔍 Testando similarity_search SEM filtro, k={k}")
+
+            try:
+                all_docs = vectorstore.similarity_search(question, k=k)
+
+                # Contar quantas são imagens
+                image_count = sum(1 for doc in all_docs if doc.metadata.get('type') == 'image')
+
+                result["analysis"]["similarity_search_no_filter"] = {
+                    "success": True,
+                    "total_count": len(all_docs),
+                    "image_count": image_count,
+                    "text_count": len(all_docs) - image_count
+                }
+
+                print(f"✓ Retornou {len(all_docs)} docs ({image_count} imagens, {len(all_docs) - image_count} textos/tabelas)")
+
+            except Exception as e:
+                result["analysis"]["similarity_search_no_filter"] = {
+                    "success": False,
+                    "error": str(e)
+                }
+                print(f"✗ Erro: {str(e)}")
+
+            # 4. Criar fresh vectorstore instance (como no código de query) e testar
+            print(f"\n🔍 Testando com FRESH vectorstore instance")
+
+            try:
+                fresh_vectorstore = Chroma(
+                    collection_name="knowledge_base",
+                    embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),
+                    persist_directory=persist_directory
+                )
+
+                images_fresh = fresh_vectorstore.similarity_search(
+                    question,
+                    k=k,
+                    filter={"type": "image"}
+                )
+
+                result["analysis"]["fresh_vectorstore_search"] = {
+                    "success": True,
+                    "count": len(images_fresh)
+                }
+
+                print(f"✓ Fresh vectorstore retornou {len(images_fresh)} imagens")
+
+            except Exception as e:
+                result["analysis"]["fresh_vectorstore_search"] = {
+                    "success": False,
+                    "error": str(e)
+                }
+                print(f"✗ Erro: {str(e)}")
+
+            # 5. Diagnóstico
+            if len(image_ids) == 0:
+                result["diagnosis"] = "❌ PROBLEMA: Não há chunks com type='image' no Chroma. Verificar upload."
+            elif result["analysis"]["similarity_search_with_filter"]["count"] == 0:
+                result["diagnosis"] = "❌ PROBLEMA: Há imagens no Chroma mas similarity_search com filtro retorna 0. Problema no filtro ou embeddings."
+            else:
+                result["diagnosis"] = "✅ OK: Busca de imagens está funcionando corretamente."
+
+            print(f"\n📊 DIAGNÓSTICO: {result['diagnosis']}")
+            print("=" * 70)
+
+            return jsonify(result)
+
+        except Exception as e:
+            import traceback
+            return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
     @app.route('/inspect-tables', methods=['GET'])
     def inspect_tables():
         """CRITICAL: Inspect actual table content extracted from PDFs"""
