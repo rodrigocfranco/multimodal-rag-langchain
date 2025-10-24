@@ -848,17 +848,21 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                     )
 
                     # Usar apenas a query - embeddings semânticos são inteligentes!
+                    print(f"      DEBUG: Buscando com filter={{'type': 'image'}}, k=30")
                     images = fresh_vectorstore.similarity_search(
                         question,
                         k=30,  # Buscar mais imagens em contexto multi-doc
                         filter={"type": "image"}
                     )
+                    print(f"      DEBUG: {len(images)} imagens retornadas pela busca")
 
                     found_images = []
                     seen_doc_ids = set()
 
                     for img in images:
                         doc_id = img.metadata.get('doc_id')
+                        img_type = img.metadata.get('type')
+                        print(f"         DEBUG: Imagem - doc_id={doc_id}, type={img_type}")
                         if doc_id and doc_id not in seen_doc_ids:
                             found_images.append(img)
                             seen_doc_ids.add(doc_id)
@@ -870,7 +874,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                         # Adicionar imagens NO INÍCIO (prioridade)
                         docs = found_images + docs
                     else:
-                        print(f"   ℹ️ Nenhuma imagem relevante encontrada")
+                        print(f"   ℹ️ Nenhuma imagem relevante encontrada (0 imagens no vectorstore)")
 
                 except Exception as e:
                     print(f"   ✗ Erro ao buscar imagens: {str(e)[:100]}")

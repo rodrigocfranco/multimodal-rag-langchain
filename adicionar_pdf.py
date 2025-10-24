@@ -1223,10 +1223,13 @@ try:
         )
     
         # Salvar imagem original no docstore (base64)
+        print(f"      🖼️  Salvando imagem {i+1}/{len(image_summaries)}: doc_id={doc_id}, type={doc.metadata.get('type')}")
         retriever.vectorstore.add_documents([doc])
+        print(f"         ✓ Imagem adicionada ao vectorstore")
         retriever.docstore.mset([(doc_id, images[i])])
-    
-    print(f"   ✓ {len(image_summaries)} imagens adicionadas")
+        print(f"         ✓ Imagem adicionada ao docstore")
+
+    print(f"   ✓ {len(image_summaries)} imagens adicionadas com sucesso")
     
     # Salvar
     print(f"   Salvando docstore...")
