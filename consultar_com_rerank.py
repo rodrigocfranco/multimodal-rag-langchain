@@ -621,8 +621,8 @@ if modo_api:
                         global _docstore
                         image_obj = _docstore.mget([doc_id])[0]
                         if image_obj:
-                            # Converter Image object para base64
-                            image_base64 = image_to_base64(image_obj)
+                            # Image object da Unstructured tem .text com base64
+                            image_base64 = image_obj.text if hasattr(image_obj, 'text') else str(image_obj)
                             image_data = {
                                 "base64": image_base64,
                                 "metadata": metadata
@@ -667,15 +667,14 @@ REGRAS CRÍTICAS:
 4. Se houver listas, tabelas ou critérios, reproduza-os FIELMENTE
 5. Mantenha formatação original (bullets, números, etc)
 
-🖼️ USO PROATIVO DE IMAGENS (IMPORTANTE):
-6. Se você receber IMAGENS anexadas nesta mensagem (fluxogramas, diagramas, figuras), você DEVE:
-   - Analisar TODAS as imagens fornecidas
-   - Incluir referência às imagens na resposta quando forem RELEVANTES para a pergunta
-   - Formato para referenciar uma imagem: 📊 **[FIGURA X: Título da Imagem]**
-   - Logo ABAIXO da referência, descrever o conteúdo da imagem E explicar sua relação com a pergunta
-   - NÃO use sintaxe markdown de imagem (![]() ou attachment://)
-   - As imagens serão exibidas AUTOMATICAMENTE pelo sistema logo após sua descrição
-   - SEMPRE que uma imagem for relevante, inclua-a PROATIVAMENTE (mesmo se o usuário não pedir explicitamente "mostre a imagem")
+🖼️ USO EQUILIBRADO DE IMAGENS:
+6. Se você receber IMAGENS anexadas (fluxogramas, diagramas, figuras):
+   - PRIORIZE responder a pergunta com TEXTO COMPLETO E DETALHADO baseado no contexto textual
+   - Inclua referências a imagens APENAS quando forem DIRETAMENTE relevantes para ENRIQUECER a resposta
+   - Formato para referenciar: 📊 **[FIGURA X: Título]** seguido de breve explicação de como a imagem complementa o texto
+   - NÃO use sintaxe markdown (![]() ou attachment://) - imagens aparecem automaticamente
+   - NÃO transforme a resposta em uma descrição de imagens - mantenha foco no CONTEÚDO TEXTUAL
+   - A imagem deve COMPLEMENTAR a resposta textual, não substituí-la
 
 INFERÊNCIAS PERMITIDAS (apenas quando necessário):
 7. Se a pergunta pede "relação entre X e Y", você PODE conectar informações de DIFERENTES trechos do contexto, citando AMBOS
@@ -3052,8 +3051,8 @@ else:
                         global _docstore
                         image_obj = _docstore.mget([doc_id])[0]
                         if image_obj:
-                            # Converter Image object para base64
-                            image_base64 = image_to_base64(image_obj)
+                            # Image object da Unstructured tem .text com base64
+                            image_base64 = image_obj.text if hasattr(image_obj, 'text') else str(image_obj)
                             image_data = {
                                 "base64": image_base64,
                                 "metadata": metadata
@@ -3098,15 +3097,14 @@ REGRAS CRÍTICAS:
 4. Se houver listas, tabelas ou critérios, reproduza-os FIELMENTE
 5. Mantenha formatação original (bullets, números, etc)
 
-🖼️ USO PROATIVO DE IMAGENS (IMPORTANTE):
-6. Se você receber IMAGENS anexadas nesta mensagem (fluxogramas, diagramas, figuras), você DEVE:
-   - Analisar TODAS as imagens fornecidas
-   - Incluir referência às imagens na resposta quando forem RELEVANTES para a pergunta
-   - Formato para referenciar uma imagem: 📊 **[FIGURA X: Título da Imagem]**
-   - Logo ABAIXO da referência, descrever o conteúdo da imagem E explicar sua relação com a pergunta
-   - NÃO use sintaxe markdown de imagem (![]() ou attachment://)
-   - As imagens serão exibidas AUTOMATICAMENTE pelo sistema logo após sua descrição
-   - SEMPRE que uma imagem for relevante, inclua-a PROATIVAMENTE (mesmo se o usuário não pedir explicitamente "mostre a imagem")
+🖼️ USO EQUILIBRADO DE IMAGENS:
+6. Se você receber IMAGENS anexadas (fluxogramas, diagramas, figuras):
+   - PRIORIZE responder a pergunta com TEXTO COMPLETO E DETALHADO baseado no contexto textual
+   - Inclua referências a imagens APENAS quando forem DIRETAMENTE relevantes para ENRIQUECER a resposta
+   - Formato para referenciar: 📊 **[FIGURA X: Título]** seguido de breve explicação de como a imagem complementa o texto
+   - NÃO use sintaxe markdown (![]() ou attachment://) - imagens aparecem automaticamente
+   - NÃO transforme a resposta em uma descrição de imagens - mantenha foco no CONTEÚDO TEXTUAL
+   - A imagem deve COMPLEMENTAR a resposta textual, não substituí-la
 
 INFERÊNCIAS PERMITIDAS (apenas quando necessário):
 7. Se a pergunta pede "relação entre X e Y", você PODE conectar informações de DIFERENTES trechos do contexto, citando AMBOS
