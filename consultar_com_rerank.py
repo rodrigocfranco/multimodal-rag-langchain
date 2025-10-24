@@ -519,20 +519,25 @@ if modo_api:
 
     print(f"   Documentos carregados para BM25: {len(all_docs_for_bm25)}")
 
-    # Validar se há documentos antes de criar BM25
-    if len(all_docs_for_bm25) == 0:
-        print(f"   ⚠️  Nenhum documento para BM25 - retornando None")
-        return None, 0
-
     # BM25 Retriever (keyword-based)
-    bm25_retriever = BM25Retriever.from_documents(all_docs_for_bm25)
-    bm25_retriever.k = 40  # Buscar mais docs, o reranker vai filtrar
+    # Nota: Se não houver documentos, o BM25 será inicializado vazio
+    # O rebuild_retriever() tratará a validação quando reconstruir
+    if len(all_docs_for_bm25) > 0:
+        bm25_retriever = BM25Retriever.from_documents(all_docs_for_bm25)
+        bm25_retriever.k = 40  # Buscar mais docs, o reranker vai filtrar
+    else:
+        bm25_retriever = None
+        print("   ⚠️  BM25 não inicializado (sem documentos)")
 
     # Ensemble: combinar BM25 (keyword) + Vector (semantic)
-    hybrid_retriever = EnsembleRetriever(
-        retrievers=[bm25_retriever, wrapped_retriever],
-        weights=[0.4, 0.6]  # 40% BM25 (keywords), 60% vector (semântica)
-    )
+    if bm25_retriever:
+        hybrid_retriever = EnsembleRetriever(
+            retrievers=[bm25_retriever, wrapped_retriever],
+            weights=[0.4, 0.6]  # 40% BM25 (keywords), 60% vector (semântica)
+        )
+    else:
+        # Sem documentos, usar apenas retriever vazio
+        hybrid_retriever = wrapped_retriever
 
     print(f"   ✅ Hybrid Search configurado")
     print(f"      BM25 weight: 40% (keyword precision)")
