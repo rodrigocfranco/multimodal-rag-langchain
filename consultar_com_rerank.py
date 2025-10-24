@@ -828,9 +828,6 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                     "total_docs_indexed": 0
                 }), 404
 
-            # ✅ Acessar vectorstore global para busca de imagens
-            global vectorstore
-
             # 🖼️ WRAPPER: SEMPRE adiciona imagens relevantes após Cohere Rerank
             def retriever_with_post_rerank_images(question):
                 """Executa retriever E força inclusão de imagens relevantes SEMPRE"""
@@ -842,8 +839,16 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
 
                 # 3. Buscar imagens diretamente usando apenas a query original
                 try:
+                    # ✅ FIX: Criar nova instância do Chroma para pegar dados atualizados
+                    # (o vectorstore global não é atualizado quando novos docs são adicionados)
+                    fresh_vectorstore = Chroma(
+                        collection_name="knowledge_base",
+                        embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),
+                        persist_directory=persist_directory
+                    )
+
                     # Usar apenas a query - embeddings semânticos são inteligentes!
-                    images = vectorstore.similarity_search(
+                    images = fresh_vectorstore.similarity_search(
                         question,
                         k=30,  # Buscar mais imagens em contexto multi-doc
                         filter={"type": "image"}
