@@ -831,58 +831,44 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             # ✅ Acessar vectorstore global para busca de imagens
             global vectorstore
 
-            # 🖼️ WRAPPER: Adiciona imagens APÓS Cohere Rerank (evita que sejam descartadas)
+            # 🖼️ WRAPPER: SEMPRE adiciona imagens relevantes após Cohere Rerank
             def retriever_with_post_rerank_images(question):
-                """Executa retriever E força inclusão de imagens APÓS o rerank"""
+                """Executa retriever E força inclusão de imagens relevantes SEMPRE"""
                 # 1. Retrieval normal (inclui Cohere rerank que pode descartar imagens)
                 docs = retriever.invoke(question)
 
-                # 2. Detectar se é query sobre imagens
-                is_image_query, keywords = detect_image_query(question)
+                # 2. SEMPRE buscar imagens relevantes (busca proativa!)
+                print(f"   🖼️ Buscando imagens relevantes para enriquecer resposta...")
 
-                if is_image_query:
-                    print(f"   🖼️ Query sobre imagens detectada (pós-rerank)! Keywords: {keywords}")
+                # 3. Buscar imagens diretamente usando apenas a query original
+                try:
+                    # Usar apenas a query - embeddings semânticos são inteligentes!
+                    images = vectorstore.similarity_search(
+                        question,
+                        k=30,  # Buscar mais imagens em contexto multi-doc
+                        filter={"type": "image"}
+                    )
 
-                    # 3. Buscar imagens diretamente do vectorstore
-                    try:
-                        image_queries = [
-                            question,
-                            " ".join(keywords) if keywords else "figura",
-                            re.sub(r'\s+\d+', '', question) if re.search(r'figura\s+\d+', question.lower()) else None,
-                            "figura fluxograma algoritmo diagrama",
-                        ]
-                        image_queries = [q for q in image_queries if q]
+                    found_images = []
+                    seen_doc_ids = set()
 
-                        found_images = []
-                        seen_doc_ids = set()
-
-                        for img_query in image_queries:
-                            try:
-                                images = vectorstore.similarity_search(
-                                    img_query,
-                                    k=10,
-                                    filter={"type": "image"}
-                                )
-
-                                for img in images:
-                                    doc_id = img.metadata.get('doc_id')
-                                    if doc_id and doc_id not in seen_doc_ids:
-                                        found_images.append(img)
-                                        seen_doc_ids.add(doc_id)
-                                        if len(found_images) >= 3:
-                                            break
-                            except:
-                                pass
-
-                            if len(found_images) >= 3:
+                    for img in images:
+                        doc_id = img.metadata.get('doc_id')
+                        if doc_id and doc_id not in seen_doc_ids:
+                            found_images.append(img)
+                            seen_doc_ids.add(doc_id)
+                            if len(found_images) >= 5:  # Máximo 5 imagens
                                 break
 
-                        if found_images:
-                            print(f"   ✓ Forçando inclusão de {len(found_images)} imagens (pós-rerank)")
-                            # Adicionar imagens NO INÍCIO (prioridade)
-                            docs = found_images + docs
-                    except Exception as e:
-                        print(f"   ✗ Erro ao forçar imagens pós-rerank: {str(e)[:100]}")
+                    if found_images:
+                        print(f"   ✓ Adicionando {len(found_images)} imagens relevantes (pós-rerank)")
+                        # Adicionar imagens NO INÍCIO (prioridade)
+                        docs = found_images + docs
+                    else:
+                        print(f"   ℹ️ Nenhuma imagem relevante encontrada")
+
+                except Exception as e:
+                    print(f"   ✗ Erro ao buscar imagens: {str(e)[:100]}")
 
                 return docs
 
