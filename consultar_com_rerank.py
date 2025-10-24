@@ -653,9 +653,11 @@ REGRAS CRÍTICAS:
 🖼️ USO PROATIVO DE IMAGENS (IMPORTANTE):
 6. Se você receber IMAGENS anexadas nesta mensagem (fluxogramas, diagramas, figuras), você DEVE:
    - Analisar TODAS as imagens fornecidas
-   - Incluir as imagens na resposta quando forem RELEVANTES para a pergunta
-   - Descrever o conteúdo da imagem E explicar sua relação com a pergunta
-   - Mostrar a imagem usando o formato: 📊 **[FIGURA X]** seguido da descrição
+   - Incluir referência às imagens na resposta quando forem RELEVANTES para a pergunta
+   - Formato para referenciar uma imagem: 📊 **[FIGURA X: Título da Imagem]**
+   - Logo ABAIXO da referência, descrever o conteúdo da imagem E explicar sua relação com a pergunta
+   - NÃO use sintaxe markdown de imagem (![]() ou attachment://)
+   - As imagens serão exibidas AUTOMATICAMENTE pelo sistema logo após sua descrição
    - SEMPRE que uma imagem for relevante, inclua-a PROATIVAMENTE (mesmo se o usuário não pedir explicitamente "mostre a imagem")
 
 INFERÊNCIAS PERMITIDAS (apenas quando necessário):
@@ -3069,9 +3071,11 @@ REGRAS CRÍTICAS:
 🖼️ USO PROATIVO DE IMAGENS (IMPORTANTE):
 6. Se você receber IMAGENS anexadas nesta mensagem (fluxogramas, diagramas, figuras), você DEVE:
    - Analisar TODAS as imagens fornecidas
-   - Incluir as imagens na resposta quando forem RELEVANTES para a pergunta
-   - Descrever o conteúdo da imagem E explicar sua relação com a pergunta
-   - Mostrar a imagem usando o formato: 📊 **[FIGURA X]** seguido da descrição
+   - Incluir referência às imagens na resposta quando forem RELEVANTES para a pergunta
+   - Formato para referenciar uma imagem: 📊 **[FIGURA X: Título da Imagem]**
+   - Logo ABAIXO da referência, descrever o conteúdo da imagem E explicar sua relação com a pergunta
+   - NÃO use sintaxe markdown de imagem (![]() ou attachment://)
+   - As imagens serão exibidas AUTOMATICAMENTE pelo sistema logo após sua descrição
    - SEMPRE que uma imagem for relevante, inclua-a PROATIVAMENTE (mesmo se o usuário não pedir explicitamente "mostre a imagem")
 
 INFERÊNCIAS PERMITIDAS (apenas quando necessário):
