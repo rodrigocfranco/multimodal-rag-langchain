@@ -780,22 +780,22 @@ if images:
     
     prompt_img = ChatPromptTemplate.from_messages([
         ("user", [
-            {"type": "text", "text": """Describe this medical image in detail.
+            {"type": "text", "text": """Descreva esta imagem médica em detalhes, EM PORTUGUÊS BRASILEIRO.
 
-IMPORTANT: Start your description with the image type and number if visible:
-- If it shows "Figura 1" or "Figure 1": Start with "FIGURA 1: ..."
-- If it shows "Figura 2" or "Figure 2": Start with "FIGURA 2: ..."
-- If it shows "Fluxograma 1": Start with "FLUXOGRAMA 1: ..."
-- If it shows "Tabela 1": Start with "TABELA 1: ..."
-- If no number is visible, identify the type: "FLUXOGRAMA: ...", "DIAGRAMA: ...", "GRÁFICO: ..."
+IMPORTANTE: Inicie sua descrição com o tipo e número da imagem se visível:
+- Se mostra "Figura 1" ou "Figure 1": Inicie com "FIGURA 1: ..."
+- Se mostra "Figura 2" ou "Figure 2": Inicie com "FIGURA 2: ..."
+- Se mostra "Fluxograma 1": Inicie com "FLUXOGRAMA 1: ..."
+- Se mostra "Tabela 1": Inicie com "TABELA 1: ..."
+- Se nenhum número estiver visível, identifique o tipo: "FLUXOGRAMA: ...", "DIAGRAMA: ...", "GRÁFICO: ..."
 
-Then describe:
-1. What the image shows (flowchart, algorithm, diagram, table, graph, etc)
-2. Main elements and structure
-3. Key data or information
-4. Clinical context if applicable
+Então descreva:
+1. O que a imagem mostra (fluxograma, algoritmo, diagrama, tabela, gráfico, etc)
+2. Elementos principais e estrutura
+3. Dados ou informações-chave
+4. Contexto clínico se aplicável
 
-Be detailed and specific."""},
+Seja detalhado e específico. SEMPRE responda em português."""},
             {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,{image}"}},
         ])
     ])

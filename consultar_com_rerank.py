@@ -861,62 +861,70 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                     "total_docs_indexed": 0
                 }), 404
 
-            # 🖼️ WRAPPER: SEMPRE adiciona imagens relevantes após Cohere Rerank
-            def retriever_with_post_rerank_images(question):
-                """Executa retriever E força inclusão de imagens relevantes SEMPRE"""
-                # 1. Retrieval normal (inclui Cohere rerank que pode descartar imagens)
+            # 🖼️ WRAPPER HÍBRIDO: Confia no Cohere, fallback se necessário
+            def retriever_with_smart_image_fallback(question):
+                """
+                Abordagem híbrida inteligente para imagens:
+                1. Confia no Cohere Rerank para trazer imagens se forem muito relevantes
+                2. Se Cohere não trouxe imagens, busca 1-2 como fallback (quando disponíveis)
+                """
+                # 1. Retrieval normal com Cohere rerank (pode incluir imagens)
                 docs = retriever.invoke(question)
 
-                # 2. SEMPRE buscar imagens relevantes (busca proativa!)
-                print(f"   🖼️ Buscando imagens relevantes para enriquecer resposta...")
+                # 2. Verificar se Cohere já trouxe imagens
+                images_from_cohere = [d for d in docs if d.metadata.get('type') == 'image']
 
-                # 3. Buscar imagens diretamente usando apenas a query original
+                if images_from_cohere:
+                    print(f"   ✓ Cohere trouxe {len(images_from_cohere)} imagem(ns) relevante(s)")
+                    return docs  # Cohere já escolheu bem, confiar nele
+
+                # 3. Fallback: Se Cohere não trouxe imagens, buscar 1-2 como complemento
+                print(f"   🖼️ Cohere não trouxe imagens, buscando fallback...")
+
                 try:
-                    # ✅ FIX: Criar nova instância do Chroma para pegar dados atualizados
-                    # (o vectorstore global não é atualizado quando novos docs são adicionados)
+                    # Criar nova instância do Chroma para dados atualizados
                     fresh_vectorstore = Chroma(
                         collection_name="knowledge_base",
                         embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),
                         persist_directory=persist_directory
                     )
 
-                    # Usar apenas a query - embeddings semânticos são inteligentes!
-                    print(f"      DEBUG: Buscando com filter={{'type': 'image'}}, k=10")
+                    # Buscar apenas top-5 imagens mais relevantes
                     images = fresh_vectorstore.similarity_search(
                         question,
-                        k=10,  # Buscar top 10 imagens mais relevantes
+                        k=5,  # Buscar menos candidatos
                         filter={"type": "image"}
                     )
-                    print(f"      DEBUG: {len(images)} imagens retornadas pela busca")
 
+                    if not images:
+                        print(f"   ℹ️ Nenhuma imagem disponível no vectorstore")
+                        return docs
+
+                    # Pegar apenas 1-2 melhores imagens como fallback
                     found_images = []
                     seen_doc_ids = set()
 
                     for img in images:
                         doc_id = img.metadata.get('doc_id')
-                        img_type = img.metadata.get('type')
-                        print(f"         DEBUG: Imagem - doc_id={doc_id}, type={img_type}")
                         if doc_id and doc_id not in seen_doc_ids:
                             found_images.append(img)
                             seen_doc_ids.add(doc_id)
-                            if len(found_images) >= 3:  # Máximo 3 imagens por resposta
+                            if len(found_images) >= 2:  # Máximo 2 imagens em fallback
                                 break
 
                     if found_images:
-                        print(f"   ✓ Adicionando {len(found_images)} imagens relevantes (pós-rerank)")
-                        # Adicionar imagens NO INÍCIO (prioridade)
-                        docs = found_images + docs
-                    else:
-                        print(f"   ℹ️ Nenhuma imagem relevante encontrada (0 imagens no vectorstore)")
+                        print(f"   ✓ Adicionando {len(found_images)} imagem(ns) como fallback")
+                        # Adicionar ao FINAL (menor prioridade que Cohere)
+                        docs = docs + found_images
 
                 except Exception as e:
-                    print(f"   ✗ Erro ao buscar imagens: {str(e)[:100]}")
+                    print(f"   ⚠️ Erro no fallback de imagens: {str(e)[:100]}")
 
                 return docs
 
-            # Reconstruir chain com retriever + boost pós-rerank
+            # Reconstruir chain com retriever + fallback inteligente
             fresh_chain = {
-                "context": RunnableLambda(retriever_with_post_rerank_images) | RunnableLambda(parse_docs),
+                "context": RunnableLambda(retriever_with_smart_image_fallback) | RunnableLambda(parse_docs),
                 "question": RunnablePassthrough(),
             } | RunnablePassthrough().assign(
                 response=(
