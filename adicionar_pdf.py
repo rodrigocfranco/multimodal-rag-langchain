@@ -916,6 +916,10 @@ else:
 # EXTRAIR SCREENSHOTS DE TABELAS COMO IMAGENS SECUNDÁRIAS
 # ===========================================================================
 print("📸 Extraindo screenshots de tabelas como imagens secundárias...")
+
+# Primeiro, criar um mapa de chunks originais por índice para detectar texto próximo
+chunks_by_index = {i: chunk for i, chunk in enumerate(chunks)}
+
 table_screenshots = []
 table_screenshot_summaries = []
 
@@ -938,11 +942,58 @@ for i, table in enumerate(tables):
                 # Pegar primeiros 200 chars do texto da tabela para contexto
                 table_preview = table.text[:200] if hasattr(table, 'text') else ''
 
-                # Descrição contextual
-                description = f"TABELA {i+1} (Página {page_num}): Screenshot da tabela. Conteúdo: {table_preview}..."
+                # ✅ CAPTURAR TEXTO EXPLICATIVO PRÓXIMO À TABELA
+                # Verificar se há orig_elements (chunking by_title pode agrupar)
+                explanatory_text = ""
+                if hasattr(table, 'metadata') and hasattr(table.metadata, 'orig_elements'):
+                    # Procurar elementos de texto logo após a tabela
+                    orig_els = table.metadata.orig_elements
+                    if orig_els:
+                        # Encontrar índice da tabela nos orig_elements
+                        for idx, el in enumerate(orig_els):
+                            if "Table" in str(type(el).__name__):
+                                # Pegar próximos 1-2 elementos de texto após a tabela
+                                next_elements = orig_els[idx+1:idx+3]
+                                for next_el in next_elements:
+                                    if "Text" in str(type(next_el).__name__) or "NarrativeText" in str(type(next_el).__name__):
+                                        text_content = next_el.text if hasattr(next_el, 'text') else str(next_el)
+                                        # Verificar se é legenda/nota (texto curto e descritivo)
+                                        if 50 < len(text_content) < 500:  # Legendas geralmente têm 50-500 chars
+                                            explanatory_text += f" {text_content}"
+                                break
+
+                # Se não encontrou em orig_elements, tentar buscar nos chunks originais
+                # (buscar elementos logo após a tabela na sequência do PDF)
+                if not explanatory_text and hasattr(table, 'metadata'):
+                    # Tentar encontrar elementos adjacentes pela coordenada da página
+                    table_page = table.metadata.page_number if hasattr(table.metadata, 'page_number') else None
+                    if table_page:
+                        # Buscar chunks de texto da mesma página que vêm logo depois
+                        for chunk in chunks:
+                            if hasattr(chunk, 'metadata') and hasattr(chunk.metadata, 'page_number'):
+                                if chunk.metadata.page_number == table_page:
+                                    chunk_type = str(type(chunk).__name__)
+                                    if "Text" in chunk_type or "Narrative" in chunk_type:
+                                        text_content = chunk.text if hasattr(chunk, 'text') else str(chunk)
+                                        # Verificar se parece ser legenda (contém palavras-chave)
+                                        text_lower = text_content.lower()
+                                        if any(kw in text_lower for kw in ['fonte:', 'nota:', 'legenda:', 'adaptado', '*', '†']):
+                                            if 50 < len(text_content) < 500:
+                                                explanatory_text += f" {text_content}"
+                                                break
+
+                # Adicionar texto explicativo à descrição se encontrado
+                if explanatory_text:
+                    description = f"TABELA {i+1} (Página {page_num}): Screenshot da tabela. Conteúdo: {table_preview}... Nota explicativa: {explanatory_text[:200]}"
+                    # ✅ IMPORTANTE: Adicionar texto explicativo à tabela também (para OCR)
+                    if hasattr(table, 'text'):
+                        table.text = f"{table.text}\n\n[NOTA EXPLICATIVA]\n{explanatory_text}"
+                else:
+                    description = f"TABELA {i+1} (Página {page_num}): Screenshot da tabela. Conteúdo: {table_preview}..."
+
                 table_screenshot_summaries.append(description)
 
-                print(f"   ✓ Screenshot da tabela {i+1} extraído (página {page_num})")
+                print(f"   ✓ Screenshot da tabela {i+1} extraído (página {page_num}){' + texto explicativo' if explanatory_text else ''}")
 
 if table_screenshots:
     print(f"   ✓ {len(table_screenshots)} screenshots de tabelas extraídos\n")
