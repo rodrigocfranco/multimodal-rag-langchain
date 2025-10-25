@@ -889,13 +889,33 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                         persist_directory=persist_directory
                     )
 
-                    # Buscar top-5 conteúdos visuais mais relevantes (imagens E tabelas)
-                    # ChromaDB suporta $in operator para filtrar múltiplos valores
-                    visual_content = fresh_vectorstore.similarity_search(
-                        question,
-                        k=5,  # Buscar menos candidatos
-                        filter={"type": {"$in": ["image", "table"]}}  # ✅ Buscar imagens E tabelas
-                    )
+                    # FIX: Buscar imagens e tabelas SEPARADAMENTE (sem $in operator)
+                    # ChromaDB pode ter problemas com $in dependendo da versão
+                    visual_content = []
+
+                    # Buscar imagens
+                    try:
+                        images = fresh_vectorstore.similarity_search(
+                            question,
+                            k=3,
+                            filter={"type": "image"}
+                        )
+                        visual_content.extend(images)
+                        print(f"   🖼️ Encontrou {len(images)} imagem(ns) relevante(s)")
+                    except Exception as e:
+                        print(f"   ⚠️ Erro ao buscar imagens: {str(e)[:80]}")
+
+                    # Buscar tabelas
+                    try:
+                        tables = fresh_vectorstore.similarity_search(
+                            question,
+                            k=2,
+                            filter={"type": "table"}
+                        )
+                        visual_content.extend(tables)
+                        print(f"   📊 Encontrou {len(tables)} tabela(s) relevante(s)")
+                    except Exception as e:
+                        print(f"   ⚠️ Erro ao buscar tabelas: {str(e)[:80]}")
 
                     if not visual_content:
                         print(f"   ℹ️ Nenhum conteúdo visual disponível no vectorstore")
