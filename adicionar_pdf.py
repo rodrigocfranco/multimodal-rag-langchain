@@ -1142,15 +1142,19 @@ try:
     
         # Combined content: contexto + tabela completa + resumo + HTML
         combined_table_content = f"{contextualized_table}\n\n[RESUMO]\n{summary}{table_html}"
-    
+
+        # ✅ TABELAS COMO IMAGENS: Para melhor visualização, usar descrição resumida
+        # A imagem visual será recuperada do docstore automaticamente
+        table_description = f"TABELA: {summary}"
+
         doc = Document(
-            page_content=combined_table_content,  # ✅ CONTEXTUALIZADO + TABELA + RESUMO
+            page_content=table_description,  # ✅ Descrição resumida (embedding)
             metadata={
                 "doc_id": doc_id,
                 "pdf_id": pdf_id,  # ✅ ID do PDF
                 "source": pdf_filename,
                 "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
-                "type": "table",
+                "type": "image",  # ✅ MUDANÇA: Tabelas são imagens visuais
                 "index": i,
                 "page_number": page_num,
                 "uploaded_at": uploaded_at,
@@ -1192,7 +1196,7 @@ try:
         retriever.vectorstore.add_documents([doc], ids=[doc_id])
         retriever.docstore.mset([(doc_id, original)])
 
-    print(f"   ✓ {len(table_summaries)} tabelas adicionadas")
+    print(f"   ✓ {len(table_summaries)} tabelas adicionadas (como imagens visuais)")
     
     print(f"   Adicionando {len(image_summaries)} imagens ao vectorstore...")
     for i, summary in enumerate(image_summaries):
