@@ -617,8 +617,14 @@ if modo_api:
                 doc_id = metadata.get('doc_id')
                 if doc_id:
                     try:
-                        # Usar docstore global
+                        # 🛡️ VALIDATE: Verificar se doc_id existe antes de buscar
+                        # (previne "Error finding id" de chunks órfãos)
                         global _docstore
+                        if not _docstore or not hasattr(_docstore, 'mget'):
+                            print(f"   ⚠️ Docstore não disponível para buscar imagem {doc_id}")
+                            continue
+
+                        # Tentar buscar a imagem do docstore
                         image_obj = _docstore.mget([doc_id])[0]
                         if image_obj:
                             # Image object da Unstructured tem .text com base64
@@ -629,6 +635,8 @@ if modo_api:
                             }
                             b64_images.append(image_data)
                             continue
+                        else:
+                            print(f"   ⚠️ Imagem {doc_id} não encontrada no docstore (chunk órfão?)")
                     except Exception as e:
                         print(f"   ⚠️ Erro ao buscar imagem {doc_id}: {str(e)[:100]}")
 
@@ -3078,8 +3086,14 @@ else:
                 doc_id = metadata.get('doc_id')
                 if doc_id:
                     try:
-                        # Usar docstore global
+                        # 🛡️ VALIDATE: Verificar se doc_id existe antes de buscar
+                        # (previne "Error finding id" de chunks órfãos)
                         global _docstore
+                        if not _docstore or not hasattr(_docstore, 'mget'):
+                            print(f"   ⚠️ Docstore não disponível para buscar imagem {doc_id}")
+                            continue
+
+                        # Tentar buscar a imagem do docstore
                         image_obj = _docstore.mget([doc_id])[0]
                         if image_obj:
                             # Image object da Unstructured tem .text com base64
@@ -3090,6 +3104,8 @@ else:
                             }
                             b64_images.append(image_data)
                             continue
+                        else:
+                            print(f"   ⚠️ Imagem {doc_id} não encontrada no docstore (chunk órfão?)")
                     except Exception as e:
                         print(f"   ⚠️ Erro ao buscar imagem {doc_id}: {str(e)[:100]}")
 

@@ -676,8 +676,16 @@ def extract_table_robust(table_element, pdf_filename, table_index):
 
     # 4. DECISÃO INTELIGENTE: Qual método usar?
 
+    # 🔄 CASO ESPECIAL: Tabela ROTACIONADA detectada -> SEMPRE usar Vision
+    # (OCR falha em tabelas rotacionadas lendo caracteres individuais)
+    if vision_success and vision_meta.get("rotation_applied", 0) > 0:
+        method = "vision_primary_rotated"
+        final_text = f"{vision_text}\n\n[OCR BACKUP]\n{ocr_text}"
+        confidence = "high"
+        print(f"      🔄 Tabela rotacionada {vision_meta.get('rotation_applied')}° - FORÇANDO Vision API")
+
     # Caso 1: Vision falhou -> usar OCR (sem escolha)
-    if not vision_success:
+    elif not vision_success:
         method = "ocr_only"
         final_text = ocr_text
         confidence = "low" if ocr_validation["completeness"] < 0.7 else "medium"
