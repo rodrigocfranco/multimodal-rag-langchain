@@ -760,18 +760,18 @@ for i, text in enumerate(texts):
         text_summaries.append(content[:500])
 print(f"   ✓ {len(text_summaries)} textos")
 
-# Tabelas
+# Tabelas - RESUMO RÁPIDO (tabelas serão imagens visuais)
 table_summaries = []
 if tables:
     for i, table in enumerate(tables):
         try:
             content = table.metadata.text_as_html if hasattr(table, 'metadata') and hasattr(table.metadata, 'text_as_html') else table.text if hasattr(table, 'text') else str(table)
-            table_summaries.append(summarize.invoke(content))
+            # ✅ Resumo rápido sem LLM (tabelas são imagens visuais)
+            table_summaries.append(content[:300])  # Primeiros 300 chars
             print(f"   Tabelas: {i+1}/{len(tables)}", end="\r")
-            time.sleep(0.5)
         except:
-            table_summaries.append(content[:500])
-    print(f"   ✓ {len(table_summaries)} tabelas")
+            table_summaries.append(content[:300])
+    print(f"   ✓ {len(table_summaries)} tabelas (resumo rápido)")
 
 # Imagens
 image_summaries = []
