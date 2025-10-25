@@ -641,7 +641,8 @@ TABELA:"""
         return vision_text, True, {
             "page": page_num,
             "length": len(vision_text),
-            "method": "gpt-4o-vision"
+            "method": "gpt-4o-vision",
+            "rotation_applied": rotation  # ✅ CRITICAL: Pass rotation info to decision logic
         }
 
     except Exception as e:
