@@ -871,15 +871,15 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 # 1. Retrieval normal com Cohere rerank (pode incluir imagens)
                 docs = retriever.invoke(question)
 
-                # 2. Verificar se Cohere já trouxe imagens
-                images_from_cohere = [d for d in docs if d.metadata.get('type') == 'image']
+                # 2. Verificar se Cohere já trouxe conteúdo visual (imagens OU tabelas)
+                visual_content_from_cohere = [d for d in docs if d.metadata.get('type') in ['image', 'table']]
 
-                if images_from_cohere:
-                    print(f"   ✓ Cohere trouxe {len(images_from_cohere)} imagem(ns) relevante(s)")
+                if visual_content_from_cohere:
+                    print(f"   ✓ Cohere trouxe {len(visual_content_from_cohere)} conteúdo(s) visual(is) relevante(s)")
                     return docs  # Cohere já escolheu bem, confiar nele
 
-                # 3. Fallback: Se Cohere não trouxe imagens, buscar 1-2 como complemento
-                print(f"   🖼️ Cohere não trouxe imagens, buscando fallback...")
+                # 3. Fallback: Se Cohere não trouxe conteúdo visual, buscar 1-2 como complemento
+                print(f"   🖼️ Cohere não trouxe conteúdo visual, buscando fallback...")
 
                 try:
                     # Criar nova instância do Chroma para dados atualizados
@@ -889,33 +889,34 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                         persist_directory=persist_directory
                     )
 
-                    # Buscar apenas top-5 imagens mais relevantes
-                    images = fresh_vectorstore.similarity_search(
+                    # Buscar top-5 conteúdos visuais mais relevantes (imagens E tabelas)
+                    # ChromaDB suporta $in operator para filtrar múltiplos valores
+                    visual_content = fresh_vectorstore.similarity_search(
                         question,
                         k=5,  # Buscar menos candidatos
-                        filter={"type": "image"}
+                        filter={"type": {"$in": ["image", "table"]}}  # ✅ Buscar imagens E tabelas
                     )
 
-                    if not images:
-                        print(f"   ℹ️ Nenhuma imagem disponível no vectorstore")
+                    if not visual_content:
+                        print(f"   ℹ️ Nenhum conteúdo visual disponível no vectorstore")
                         return docs
 
-                    # Pegar apenas 1-2 melhores imagens como fallback
-                    found_images = []
+                    # Pegar apenas 1-2 melhores conteúdos visuais como fallback
+                    found_visual = []
                     seen_doc_ids = set()
 
-                    for img in images:
-                        doc_id = img.metadata.get('doc_id')
+                    for item in visual_content:
+                        doc_id = item.metadata.get('doc_id')
                         if doc_id and doc_id not in seen_doc_ids:
-                            found_images.append(img)
+                            found_visual.append(item)
                             seen_doc_ids.add(doc_id)
-                            if len(found_images) >= 2:  # Máximo 2 imagens em fallback
+                            if len(found_visual) >= 2:  # Máximo 2 itens visuais em fallback
                                 break
 
-                    if found_images:
-                        print(f"   ✓ Adicionando {len(found_images)} imagem(ns) como fallback")
+                    if found_visual:
+                        print(f"   ✓ Adicionando {len(found_visual)} conteúdo(s) visual(is) como fallback")
                         # Adicionar ao FINAL (menor prioridade que Cohere)
-                        docs = docs + found_images
+                        docs = docs + found_visual
 
                 except Exception as e:
                     print(f"   ⚠️ Erro no fallback de imagens: {str(e)[:100]}")
