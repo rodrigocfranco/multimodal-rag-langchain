@@ -340,7 +340,7 @@ def infer_document_type(filename):
 # CONVERSÃO DE IMAGENS PARA FORMATO SUPORTADO
 # ===========================================================================
 
-def convert_image_to_jpeg_base64(image_base64_str):
+def convert_image_to_jpeg_base64(image_base64_str, auto_rotate=False):
     """
     Converte qualquer formato de imagem para JPEG (suportado por GPT-4 Vision).
 
@@ -348,6 +348,13 @@ def convert_image_to_jpeg_base64(image_base64_str):
     Formatos suportados: PNG, JPEG, GIF, WEBP
 
     Esta função garante que TODAS as imagens sejam JPEG válidas.
+
+    Args:
+        image_base64_str: String base64 da imagem
+        auto_rotate: Se True, detecta e corrige orientação vertical (tabelas rotacionadas)
+
+    Returns:
+        tuple: (jpeg_base64, success, rotation_applied)
     """
     try:
         # Decodificar base64 para bytes
@@ -355,6 +362,23 @@ def convert_image_to_jpeg_base64(image_base64_str):
 
         # Abrir imagem com PIL
         img = Image.open(io.BytesIO(image_bytes))
+
+        rotation_applied = 0
+
+        # ✅ AUTO-ROTATE: Detectar e corrigir orientação vertical
+        if auto_rotate:
+            width, height = img.size
+
+            # Se altura >> largura, provavelmente está rotacionada
+            # Ratio > 1.5 indica orientação vertical/portrait
+            aspect_ratio = height / width if width > 0 else 1
+
+            if aspect_ratio > 1.5:
+                # Rotacionar 90° no sentido anti-horário (counterclockwise)
+                # Isso transforma portrait → landscape
+                img = img.rotate(90, expand=True)
+                rotation_applied = 90
+                print(f"      🔄 Imagem rotacionada 90° (aspect ratio: {aspect_ratio:.2f})")
 
         # Converter para RGB (remove alpha channel se houver)
         # Isso é necessário porque JPEG não suporta transparência
@@ -385,12 +409,12 @@ def convert_image_to_jpeg_base64(image_base64_str):
         # Re-encodar para base64
         jpeg_base64 = b64encode(jpeg_bytes).decode('utf-8')
 
-        return jpeg_base64, True
+        return jpeg_base64, True, rotation_applied
 
     except Exception as e:
         # Se conversão falhar, retornar None
         print(f"      ⚠️  Erro ao converter imagem: {str(e)[:100]}")
-        return None, False
+        return None, False, 0
 
 
 # Extrair imagens base64 dos chunks
@@ -425,7 +449,7 @@ def get_images_base64(chunks):
                 img = chunk.metadata.image_base64
                 if img and len(img) > 100:
                     # ✅ CONVERT TO JPEG BEFORE SIZE CHECK
-                    jpeg_img, success = convert_image_to_jpeg_base64(img)
+                    jpeg_img, success, _ = convert_image_to_jpeg_base64(img, auto_rotate=False)
                     if not success:
                         filtered_count += 1
                         continue
@@ -454,7 +478,7 @@ def get_images_base64(chunks):
                                 img = el.metadata.image_base64
                                 if img and len(img) > 100:
                                     # ✅ CONVERT TO JPEG BEFORE SIZE CHECK
-                                    jpeg_img, success = convert_image_to_jpeg_base64(img)
+                                    jpeg_img, success, _ = convert_image_to_jpeg_base64(img, auto_rotate=False)
                                     if not success:
                                         filtered_count += 1
                                         continue
@@ -551,12 +575,16 @@ def extract_table_with_vision(table_element, pdf_filename):
     if not image_b64 or len(image_b64) < 100:
         return None, False, {"error": "Image too small"}
 
-    # ✅ CONVERT TABLE IMAGE TO JPEG (fix unsupported formats)
-    jpeg_image_b64, success = convert_image_to_jpeg_base64(image_b64)
+    # ✅ CONVERT TABLE IMAGE TO JPEG + AUTO-ROTATE vertical tables
+    jpeg_image_b64, success, rotation = convert_image_to_jpeg_base64(image_b64, auto_rotate=True)
     if not success:
         return None, False, {"error": "Failed to convert image to JPEG"}
 
     image_b64 = jpeg_image_b64  # Use converted image
+
+    # Log rotation if applied
+    if rotation > 0:
+        print(f"      🔄 Tabela rotacionada {rotation}° para melhor leitura")
 
     page_num = table_element.metadata.page_number if hasattr(table_element.metadata, 'page_number') else '?'
 
@@ -929,8 +957,8 @@ for i, table in enumerate(tables):
         table_img = table.metadata.image_base64
 
         if table_img and len(table_img) > 100:
-            # Converter para JPEG (garantir compatibilidade)
-            jpeg_img, success = convert_image_to_jpeg_base64(table_img)
+            # Converter para JPEG + AUTO-ROTATE tabelas verticais (garantir compatibilidade)
+            jpeg_img, success, rotation_deg = convert_image_to_jpeg_base64(table_img, auto_rotate=True)
 
             if success:
                 # Adicionar screenshot à lista de imagens
@@ -993,7 +1021,8 @@ for i, table in enumerate(tables):
 
                 table_screenshot_summaries.append(description)
 
-                print(f"   ✓ Screenshot da tabela {i+1} extraído (página {page_num}){' + texto explicativo' if explanatory_text else ''}")
+                rotation_msg = f" (rotacionada {rotation_deg}°)" if rotation_deg > 0 else ""
+                print(f"   ✓ Screenshot da tabela {i+1} extraído (página {page_num}){rotation_msg}{' + texto explicativo' if explanatory_text else ''}")
 
 if table_screenshots:
     print(f"   ✓ {len(table_screenshots)} screenshots de tabelas extraídos\n")
