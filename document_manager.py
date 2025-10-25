@@ -137,6 +137,14 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
         # 3. Buscar chunks por MÚLTIPLOS critérios (garante deletar tudo)
         all_chunk_ids = set()
 
+        # DEBUG: Contar total de chunks no Chroma ANTES da deleção
+        try:
+            all_data = vectorstore.get()
+            total_before = len(all_data.get('ids', []))
+            print(f"\n   📊 DEBUG: Total de chunks no Chroma ANTES: {total_before}")
+        except:
+            pass
+
         # Estratégia 1: Buscar por pdf_id
         try:
             results = vectorstore.get(where={"pdf_id": pdf_id})
@@ -171,7 +179,18 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
             return {"status": "not_found", "deleted_chunks": 0, "pdf_id": pdf_id, "error": "Nenhum chunk encontrado"}
 
         # 3. Deletar do vectorstore
+        print(f"   🗑️ DELETANDO {len(chunk_ids)} chunks do Chroma...")
         vectorstore.delete(ids=chunk_ids)
+        print(f"   ✓ Chunks deletados com sucesso")
+
+        # DEBUG: Contar total APÓS deleção
+        try:
+            all_data_after = vectorstore.get()
+            total_after = len(all_data_after.get('ids', []))
+            print(f"   📊 DEBUG: Total de chunks no Chroma DEPOIS: {total_after}")
+            print(f"   📊 DEBUG: Diferença: {total_before - total_after} chunks removidos")
+        except:
+            pass
 
         # 4. Deletar do docstore
         docstore_path = f"{persist_directory}/docstore.pkl"
