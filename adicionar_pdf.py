@@ -913,6 +913,49 @@ else:
     image_summaries = []
 
 # ===========================================================================
+# EXTRAIR SCREENSHOTS DE TABELAS COMO IMAGENS SECUNDÁRIAS
+# ===========================================================================
+print("📸 Extraindo screenshots de tabelas como imagens secundárias...")
+table_screenshots = []
+table_screenshot_summaries = []
+
+for i, table in enumerate(tables):
+    # Verificar se tabela tem screenshot (image_base64)
+    if hasattr(table, 'metadata') and hasattr(table.metadata, 'image_base64'):
+        table_img = table.metadata.image_base64
+
+        if table_img and len(table_img) > 100:
+            # Converter para JPEG (garantir compatibilidade)
+            jpeg_img, success = convert_image_to_jpeg_base64(table_img)
+
+            if success:
+                # Adicionar screenshot à lista de imagens
+                table_screenshots.append(jpeg_img)
+
+                # Criar descrição baseada no conteúdo da tabela
+                page_num = table.metadata.page_number if hasattr(table.metadata, 'page_number') else '?'
+
+                # Pegar primeiros 200 chars do texto da tabela para contexto
+                table_preview = table.text[:200] if hasattr(table, 'text') else ''
+
+                # Descrição contextual
+                description = f"TABELA {i+1} (Página {page_num}): Screenshot da tabela. Conteúdo: {table_preview}..."
+                table_screenshot_summaries.append(description)
+
+                print(f"   ✓ Screenshot da tabela {i+1} extraído (página {page_num})")
+
+if table_screenshots:
+    print(f"   ✓ {len(table_screenshots)} screenshots de tabelas extraídos\n")
+
+    # Adicionar screenshots às listas de imagens principais
+    images.extend(table_screenshots)
+    image_summaries.extend(table_screenshot_summaries)
+
+    print(f"   📊 Total de imagens agora: {len(images)} (figuras + screenshots de tabelas)\n")
+else:
+    print(f"   ℹ️  Nenhuma tabela tinha screenshot disponível\n")
+
+# ===========================================================================
 # INFERIR TIPO DE DOCUMENTO (necessário para Contextual Retrieval)
 # ===========================================================================
 document_type = infer_document_type(pdf_filename)
@@ -1466,7 +1509,7 @@ print(f"   Tipo detectado: {document_type}")
 print(f"\n📦 Elementos extraídos:")
 print(f"   Textos (CompositeElement): {len(texts)}")
 print(f"   Tabelas (isoladas): {len(tables)}")
-print(f"   Imagens: {len(images)}")
+print(f"   Imagens: {len(images)} (figuras + {len(table_screenshots)} screenshots de tabelas)")
 if filtered_count > 0:
     print(f"   (filtradas: {filtered_count} imagens pequenas <{MIN_IMAGE_SIZE_KB:.0f}KB - ícones/decorações)")
 
