@@ -106,9 +106,12 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
             "status": "success|not_found|error",
             "deleted_chunks": N,
             "pdf_id": "...",
-            "error": "..." (se houver erro)
+            "error": "..." (se houver erro),
+            "debug_logs": [...] (logs de debug)
         }
     """
+    debug_logs = []  # Capturar logs para retornar na resposta
+
     try:
         from langchain_chroma import Chroma
         from langchain_openai import OpenAIEmbeddings
@@ -141,7 +144,7 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
         try:
             all_data = vectorstore.get()
             total_before = len(all_data.get('ids', []))
-            print(f"\n   📊 DEBUG: Total de chunks no Chroma ANTES: {total_before}")
+            debug_logs.append(f"📊 Total de chunks no Chroma ANTES: {total_before}")
         except:
             pass
 
@@ -149,7 +152,7 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
         try:
             results = vectorstore.get(where={"pdf_id": pdf_id})
             all_chunk_ids.update(results.get('ids', []))
-            print(f"   Encontrados {len(results.get('ids', []))} chunks por pdf_id")
+            debug_logs.append(f"Estratégia 1 (pdf_id): {len(results.get('ids', []))} chunks")
         except:
             pass
 
@@ -157,21 +160,21 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
         try:
             results = vectorstore.get(where={"source": filename})
             all_chunk_ids.update(results.get('ids', []))
-            print(f"   Encontrados {len(results.get('ids', []))} chunks por source")
+            debug_logs.append(f"Estratégia 2 (source): {len(results.get('ids', []))} chunks")
         except:
             pass
 
         # Estratégia 3: Buscar TODOS e filtrar manualmente (último recurso)
         if len(all_chunk_ids) == 0:
-            print(f"   ⚠️ Buscando todos chunks manualmente...")
+            debug_logs.append("⚠️ Buscando todos chunks manualmente...")
             try:
                 all_results = vectorstore.get(include=['metadatas'])
                 for i, meta in enumerate(all_results.get('metadatas', [])):
                     if meta.get('pdf_id') == pdf_id or meta.get('source') == filename:
                         all_chunk_ids.add(all_results['ids'][i])
-                print(f"   Encontrados {len(all_chunk_ids)} chunks por busca manual")
+                debug_logs.append(f"Estratégia 3 (manual): {len(all_chunk_ids)} chunks")
             except Exception as e:
-                print(f"   ✗ Erro na busca manual: {str(e)}")
+                debug_logs.append(f"✗ Erro na busca manual: {str(e)}")
 
         chunk_ids = list(all_chunk_ids)
 
@@ -179,16 +182,16 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
             return {"status": "not_found", "deleted_chunks": 0, "pdf_id": pdf_id, "error": "Nenhum chunk encontrado"}
 
         # 3. Deletar do vectorstore
-        print(f"   🗑️ DELETANDO {len(chunk_ids)} chunks do Chroma...")
+        debug_logs.append(f"🗑️ Deletando {len(chunk_ids)} chunks do Chroma...")
         vectorstore.delete(ids=chunk_ids)
-        print(f"   ✓ Chunks deletados com sucesso")
+        debug_logs.append(f"✓ Chunks deletados com sucesso")
 
         # DEBUG: Contar total APÓS deleção
         try:
             all_data_after = vectorstore.get()
             total_after = len(all_data_after.get('ids', []))
-            print(f"   📊 DEBUG: Total de chunks no Chroma DEPOIS: {total_after}")
-            print(f"   📊 DEBUG: Diferença: {total_before - total_after} chunks removidos")
+            debug_logs.append(f"📊 Total de chunks no Chroma DEPOIS: {total_after}")
+            debug_logs.append(f"📊 Diferença: {total_before - total_after} chunks removidos")
         except:
             pass
 
@@ -216,13 +219,14 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
         import time
         if os.path.exists(docstore_path):
             os.utime(docstore_path, None)  # Atualiza timestamp para "agora"
-            print(f"   ✓ Timestamp do docstore atualizado (força rebuild do cache)")
+            debug_logs.append("✓ Timestamp do docstore atualizado (força rebuild do cache)")
 
         return {
             "status": "success",
             "deleted_chunks": len(chunk_ids),
             "pdf_id": pdf_id,
-            "filename": filename
+            "filename": filename,
+            "debug_logs": debug_logs  # ✅ Retorna logs na resposta HTTP
         }
 
     except Exception as e:
