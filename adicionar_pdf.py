@@ -732,52 +732,115 @@ if tables:
     print()
 
 # ===========================================================================
-# GERAR RESUMOS COM IA
+# GERAR RESUMOS COM IA - BATCH ASYNC PROCESSING
 # ===========================================================================
+import asyncio
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 
-print("2️⃣  Gerando resumos...")
+print("2️⃣  Gerando resumos (batch parallel processing)...")
 
 # Upgrade: Llama → GPT-4o-mini para resumos mais precisos (+40% qualidade)
 model = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)  # Era Llama-8b
-prompt = ChatPromptTemplate.from_template(
-    "Summarize concisely: {element}"
-)
+prompt = ChatPromptTemplate.from_template("Summarize concisely: {element}")
 summarize = {"element": lambda x: x} | prompt | model | StrOutputParser()
 
-# Textos
-text_summaries = []
-for i, text in enumerate(texts):
-    try:
-        content = text.text if hasattr(text, 'text') else str(text)
-        text_summaries.append(summarize.invoke(content))
-        print(f"   Textos: {i+1}/{len(texts)}", end="\r")
-        time.sleep(0.5)
-    except:
-        text_summaries.append(content[:500])
-print(f"   ✓ {len(text_summaries)} textos")
+# ===========================================================================
+# TEXTOS - RESUMOS LLM (BATCH ASYNC)
+# ===========================================================================
+async def summarize_texts_batch(texts, batch_size=10):
+    """Processar resumos de textos em batch paralelo"""
+    all_summaries = []
 
-# Tabelas - RESUMO RÁPIDO (tabelas serão imagens visuais)
-table_summaries = []
-if tables:
-    for i, table in enumerate(tables):
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i+batch_size]
+        contents = [text.text if hasattr(text, 'text') else str(text) for text in batch]
+
+        # Processar batch em paralelo
+        tasks = [summarize.ainvoke(content) for content in contents]
         try:
-            content = table.metadata.text_as_html if hasattr(table, 'metadata') and hasattr(table.metadata, 'text_as_html') else table.text if hasattr(table, 'text') else str(table)
-            # ✅ Resumo rápido sem LLM (tabelas são imagens visuais)
-            table_summaries.append(content[:300])  # Primeiros 300 chars
-            print(f"   Tabelas: {i+1}/{len(tables)}", end="\r")
-        except:
-            table_summaries.append(content[:300])
-    print(f"   ✓ {len(table_summaries)} tabelas (resumo rápido)")
+            batch_summaries = await asyncio.gather(*tasks)
+            all_summaries.extend(batch_summaries)
+        except Exception as e:
+            # Fallback: usar primeiros 500 chars em caso de erro
+            print(f"\n   ⚠️ Erro no batch {i//batch_size + 1}: {str(e)[:80]}")
+            all_summaries.extend([c[:500] for c in contents])
 
-# Imagens
-image_summaries = []
-if images:
+        print(f"   Textos: {len(all_summaries)}/{len(texts)}", end="\r")
+
+    return all_summaries
+
+# Executar
+if texts:
+    text_summaries = asyncio.run(summarize_texts_batch(texts, batch_size=10))
+    print(f"   ✓ {len(text_summaries)} textos resumidos (LLM batch parallel)")
+else:
+    text_summaries = []
+
+# ===========================================================================
+# TABELAS - DESCRIÇÕES LLM (BATCH ASYNC) - BEST PRACTICE!
+# ===========================================================================
+async def describe_tables_batch(tables, batch_size=5):
+    """
+    Gerar descrições semânticas de tabelas via LLM
+    Best practice: Tabelas precisam descrição contextual completa
+    """
+    all_descriptions = []
+
+    # Prompt especializado para tabelas
+    table_prompt = ChatPromptTemplate.from_template("""Analise esta tabela médica e gere uma descrição concisa e semântica.
+
+Tabela:
+{table_content}
+
+Descrição (foque em: tema principal, estrutura, valores-chave, categorias):""")
+
+    table_chain = table_prompt | model | StrOutputParser()
+
+    for i in range(0, len(tables), batch_size):
+        batch = tables[i:i+batch_size]
+        contents = []
+
+        for table in batch:
+            # Extrair conteúdo da tabela (priorizar HTML)
+            if hasattr(table, 'metadata') and hasattr(table.metadata, 'text_as_html'):
+                content = table.metadata.text_as_html[:2000]  # Primeiros 2000 chars
+            elif hasattr(table, 'text'):
+                content = table.text[:2000]
+            else:
+                content = str(table)[:2000]
+            contents.append(content)
+
+        # Processar batch em paralelo
+        tasks = [table_chain.ainvoke({"table_content": c}) for c in contents]
+        try:
+            batch_descriptions = await asyncio.gather(*tasks)
+            all_descriptions.extend(batch_descriptions)
+        except Exception as e:
+            # Fallback: usar primeiros 500 chars em caso de erro
+            print(f"\n   ⚠️ Erro no batch de tabelas {i//batch_size + 1}: {str(e)[:80]}")
+            all_descriptions.extend([c[:500] for c in contents])
+
+        print(f"   Tabelas: {len(all_descriptions)}/{len(tables)}", end="\r")
+
+    return all_descriptions
+
+# Executar
+if tables:
+    table_summaries = asyncio.run(describe_tables_batch(tables, batch_size=5))
+    print(f"   ✓ {len(table_summaries)} tabelas descritas (LLM batch parallel)")
+else:
+    table_summaries = []
+
+# ===========================================================================
+# IMAGENS - DESCRIÇÕES VISION (BATCH ASYNC)
+# ===========================================================================
+async def describe_images_batch(images, batch_size=3):
+    """Processar descrições de imagens via Vision API em batch paralelo"""
     import base64
-    
+
     prompt_img = ChatPromptTemplate.from_messages([
         ("user", [
             {"type": "text", "text": """Descreva esta imagem médica em detalhes, EM PORTUGUÊS BRASILEIRO.
@@ -801,26 +864,53 @@ Seja detalhado e específico. SEMPRE responda em português."""},
     ])
     chain_img = prompt_img | ChatOpenAI(model="gpt-4o-mini") | StrOutputParser()
 
-    for i, img in enumerate(images):
-        try:
-            size_kb = len(img) / 1024
-            if 1 < size_kb < 20000:
-                base64.b64decode(img[:100])
-                print(f"   Imagens: {i+1}/{len(images)} ({size_kb:.1f}KB)...", end="\r")
-                # Passar o número da imagem para ajudar na identificação
-                description = chain_img.invoke(img)
-                # Se GPT não incluiu número, adicionar referência
-                if not any(word in description[:50].upper() for word in ['FIGURA', 'FLUXOGRAMA', 'TABELA', 'GRÁFICO', 'DIAGRAMA']):
-                    description = f"[Imagem {i+1} do documento] {description}"
-                image_summaries.append(description)
-                time.sleep(0.8)
-            else:
-                print(f"   Imagens: {i+1}/{len(images)} (ignorada: {size_kb:.1f}KB)", end="\r")
-                image_summaries.append(f"Imagem {i+1}")
-        except Exception as e:
-            print(f"   Imagens: {i+1}/{len(images)} ERRO: {str(e)[:100]}", end="\r")
-            image_summaries.append(f"Imagem {i+1} (erro: {str(e)[:50]})")
-    print(f"   ✓ {len(image_summaries)} imagens processadas\n")
+    all_descriptions = []
+
+    for i in range(0, len(images), batch_size):
+        batch = images[i:i+batch_size]
+        valid_images = []
+        valid_indices = []
+
+        # Filtrar imagens válidas
+        for idx, img in enumerate(batch):
+            global_idx = i + idx
+            try:
+                size_kb = len(img) / 1024
+                if 1 < size_kb < 20000:
+                    base64.b64decode(img[:100])  # Validar base64
+                    valid_images.append(img)
+                    valid_indices.append(global_idx)
+                else:
+                    all_descriptions.insert(global_idx, f"Imagem {global_idx+1}")
+            except:
+                all_descriptions.insert(global_idx, f"Imagem {global_idx+1} (erro de validação)")
+
+        # Processar imagens válidas em paralelo
+        if valid_images:
+            tasks = [chain_img.ainvoke(img) for img in valid_images]
+            try:
+                batch_descriptions = await asyncio.gather(*tasks)
+
+                # Adicionar número se GPT não incluiu
+                for desc_idx, description in enumerate(batch_descriptions):
+                    if not any(word in description[:50].upper() for word in ['FIGURA', 'FLUXOGRAMA', 'TABELA', 'GRÁFICO', 'DIAGRAMA']):
+                        description = f"[Imagem {valid_indices[desc_idx]+1} do documento] {description}"
+                    all_descriptions.insert(valid_indices[desc_idx], description)
+            except Exception as e:
+                print(f"\n   ⚠️ Erro no batch de imagens {i//batch_size + 1}: {str(e)[:80]}")
+                for idx in valid_indices:
+                    all_descriptions.insert(idx, f"Imagem {idx+1} (erro: {str(e)[:50]})")
+
+        print(f"   Imagens: {len(all_descriptions)}/{len(images)}", end="\r")
+
+    return all_descriptions
+
+# Executar
+if images:
+    image_summaries = asyncio.run(describe_images_batch(images, batch_size=3))
+    print(f"   ✓ {len(image_summaries)} imagens descritas (Vision batch parallel)\n")
+else:
+    image_summaries = []
 
 # ===========================================================================
 # INFERIR TIPO DE DOCUMENTO (necessário para Contextual Retrieval)
