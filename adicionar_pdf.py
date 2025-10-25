@@ -94,6 +94,19 @@ if existing_doc:
         print("\n🔄 Reprocessando documento...\n")
     else:
         print("\n🔄 AUTO_REPROCESS=true, reprocessando automaticamente...\n")
+
+    # ✅ PREVENIR DUPLICAÇÃO: Deletar versão anterior antes de reprocessar
+    print("🗑️  Deletando versão anterior para prevenir duplicação...")
+    from document_manager import delete_document
+    pdf_id = existing_doc.get('pdf_id')
+    delete_result = delete_document(pdf_id, persist_directory)
+
+    if delete_result.get('status') == 'success':
+        print(f"   ✓ {delete_result.get('deleted_chunks', 0)} chunks removidos")
+        print(f"   ✓ Documento anterior deletado com sucesso\n")
+    else:
+        print(f"   ⚠️  Erro ao deletar versão anterior: {delete_result.get('message', 'desconhecido')}")
+        print(f"   ⚠️  Prosseguindo com reprocessamento (pode causar duplicação)\n")
 else:
     print("✅ Documento novo, prosseguindo...\n")
 
@@ -1566,6 +1579,36 @@ except Exception as e:
 
     # Re-raise exception original para que o upload endpoint retorne erro
     raise e
+
+finally:
+    # ===========================================================================
+    # 🛡️ LIMPEZA GARANTIDA: Executar cleanup mesmo se rollback falhar
+    # ===========================================================================
+    if rollback_needed and chunk_ids:
+        print("\n🔧 Verificando consistência final do vectorstore...")
+        try:
+            # Tentar deletar chunks órfãos novamente (garantia extra)
+            current_count = vectorstore._collection.count()
+            if current_count > 0:
+                # Verificar se há chunks sem filename (órfãos)
+                all_results = vectorstore.get(include=['metadatas'])
+                orphan_ids = []
+                for i, meta in enumerate(all_results.get('metadatas', [])):
+                    chunk_filename = meta.get('filename')
+                    if chunk_filename is None or chunk_filename == '':
+                        orphan_ids.append(all_results['ids'][i])
+
+                if orphan_ids:
+                    print(f"   ⚠️  Encontrados {len(orphan_ids)} chunks órfãos, removendo...")
+                    vectorstore.delete(ids=orphan_ids)
+                    print(f"   ✓ Chunks órfãos removidos")
+                else:
+                    print(f"   ✓ Nenhum chunk órfão encontrado")
+            else:
+                print(f"   ✓ Vectorstore vazio (estado consistente)")
+        except Exception as cleanup_error:
+            print(f"   ⚠️  Erro durante limpeza final: {str(cleanup_error)[:100]}")
+            # Não falhar - apenas logar
 
 # ===========================================================================
 # RELATÓRIO DE QUALIDADE
