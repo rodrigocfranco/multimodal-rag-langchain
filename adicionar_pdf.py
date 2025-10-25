@@ -1245,7 +1245,7 @@ try:
                 "pdf_id": pdf_id,  # ✅ ID do PDF
                 "source": pdf_filename,
                 "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
-                "type": "image",  # ✅ MUDANÇA: Tabelas são imagens visuais
+                "type": "table",  # ✅ Tipo correto: tabela (frontend detecta image_base64 para exibição)
                 "index": i,
                 "page_number": page_num,
                 "uploaded_at": uploaded_at,
@@ -1287,7 +1287,7 @@ try:
         retriever.vectorstore.add_documents([doc], ids=[doc_id])
         retriever.docstore.mset([(doc_id, original)])
 
-    print(f"   ✓ {len(table_summaries)} tabelas adicionadas (como imagens visuais)")
+    print(f"   ✓ {len(table_summaries)} tabelas adicionadas")
     
     print(f"   Adicionando {len(image_summaries)} imagens ao vectorstore...")
     for i, summary in enumerate(image_summaries):
