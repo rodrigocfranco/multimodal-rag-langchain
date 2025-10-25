@@ -1143,12 +1143,13 @@ try:
         # Combined content: contexto + tabela completa + resumo + HTML
         combined_table_content = f"{contextualized_table}\n\n[RESUMO]\n{summary}{table_html}"
 
-        # ✅ TABELAS COMO IMAGENS: Para melhor visualização, usar descrição resumida
+        # ✅ TABELAS COMO IMAGENS: Para melhor retrieval, usar versão contextualizada
         # A imagem visual será recuperada do docstore automaticamente
-        table_description = f"TABELA: {summary}"
+        # IMPORTANTE: Usar contextualized_table (não summary truncado!) para embeddings de qualidade
+        table_description = f"TABELA:\n{contextualized_table}"
 
         doc = Document(
-            page_content=table_description,  # ✅ Descrição resumida (embedding)
+            page_content=table_description,  # ✅ Versão contextualizada completa (embedding)
             metadata={
                 "doc_id": doc_id,
                 "pdf_id": pdf_id,  # ✅ ID do PDF
