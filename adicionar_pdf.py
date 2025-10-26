@@ -680,7 +680,7 @@ def extract_table_robust(table_element, pdf_filename, table_index):
 
     # 🔄 CASO ESPECIAL: Tabela ROTACIONADA detectada -> SEMPRE usar Vision
     # (OCR falha em tabelas rotacionadas lendo caracteres individuais)
-    if vision_success and vision_meta.get("rotation_applied", 0) > 0:
+    if vision_success and vision_meta.get("rotation_applied", 0) != 0:
         method = "vision_primary_rotated"
         final_text = f"{vision_text}\n\n[OCR BACKUP]\n{ocr_text}"
         confidence = "high"
