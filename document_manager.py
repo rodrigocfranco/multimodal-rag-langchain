@@ -186,6 +186,32 @@ def delete_document(pdf_id: str, persist_directory: str = "./knowledge") -> Dict
         vectorstore.delete(ids=chunk_ids)
         debug_logs.append(f"✓ Chunks deletados com sucesso")
 
+        # 3.1 FORÇAR PERSISTÊNCIA E REINDEXAÇÃO DO CHROMA
+        # Problema: vectorstore.delete() remove do índice em memória, mas o cache interno
+        # do Chroma ainda aponta para doc_ids antigos, causando "Error finding id"
+        # Solução: Forçar persist() para sincronizar índice com disco
+        try:
+            vectorstore._client.persist()
+            debug_logs.append("✓ Chroma reindexado e sincronizado com disco")
+        except AttributeError:
+            # Chroma >= 0.4.x não tem persist() explícito (auto-persist)
+            # Nesse caso, recriar a conexão força reload do índice
+            try:
+                from langchain_chroma import Chroma
+                from langchain_openai import OpenAIEmbeddings
+
+                # Recriar vectorstore força reload do índice do disco
+                vectorstore = Chroma(
+                    collection_name="knowledge_base",
+                    embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),
+                    persist_directory=persist_directory
+                )
+                debug_logs.append("✓ Chroma reconectado (índice recarregado do disco)")
+            except Exception as e:
+                debug_logs.append(f"⚠️ Erro ao forçar reindex: {str(e)}")
+        except Exception as e:
+            debug_logs.append(f"⚠️ Erro ao persistir Chroma: {str(e)}")
+
         # DEBUG: Contar total APÓS deleção
         try:
             all_data_after = vectorstore.get()
