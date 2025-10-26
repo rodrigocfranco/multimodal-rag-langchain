@@ -70,8 +70,8 @@ if modo_api:
             # Abrir imagem com PIL
             img = Image.open(io.BytesIO(image_bytes))
 
-            # 🔥 RESIZE TO MAX 1024x1024 TO REDUCE TOKENS (fix context length exceeded)
-            MAX_SIZE = 1024
+            # 🔥 RESIZE TO MAX 512x512 TO REDUCE TOKENS (fix context length exceeded)
+            MAX_SIZE = 512
             if img.width > MAX_SIZE or img.height > MAX_SIZE:
                 img.thumbnail((MAX_SIZE, MAX_SIZE), Image.Resampling.LANCZOS)
 
@@ -353,7 +353,7 @@ if modo_api:
                 question=query,
                 base_results=converted,
                 vectorstore_instance=self.vectorstore_ref,
-                max_images=3
+                max_images=2
             )
 
             return enhanced_results
@@ -440,7 +440,7 @@ if modo_api:
                     question=query,
                     base_results=converted,
                     vectorstore_instance=self.vectorstore_ref,
-                    max_images=3
+                    max_images=2
                 )
 
                 return enhanced_results
@@ -2832,8 +2832,8 @@ else:
             # Abrir imagem com PIL
             img = Image.open(io.BytesIO(image_bytes))
 
-            # 🔥 RESIZE TO MAX 1024x1024 TO REDUCE TOKENS (fix context length exceeded)
-            MAX_SIZE = 1024
+            # 🔥 RESIZE TO MAX 512x512 TO REDUCE TOKENS (fix context length exceeded)
+            MAX_SIZE = 512
             if img.width > MAX_SIZE or img.height > MAX_SIZE:
                 img.thumbnail((MAX_SIZE, MAX_SIZE), Image.Resampling.LANCZOS)
 
@@ -3073,7 +3073,7 @@ else:
                 question=query,
                 base_results=converted,
                 vectorstore_instance=self.vectorstore_ref,
-                max_images=3
+                max_images=2
             )
 
             return enhanced_results
