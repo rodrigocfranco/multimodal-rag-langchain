@@ -214,7 +214,14 @@ if modo_api:
 
             for img_query in image_queries:
                 try:
-                    images = vectorstore_instance.similarity_search(
+                    # 🛡️ FIX: Buscar diretamente no Chroma SEM usar MultiVectorRetriever
+                    # (isso evita o erro "Error finding id" de chunks órfãos)
+                    from langchain_chroma import Chroma
+
+                    # Usar o vectorstore do Chroma diretamente (não o MultiVectorRetriever)
+                    chroma_client = vectorstore_instance.vectorstore if hasattr(vectorstore_instance, 'vectorstore') else vectorstore_instance
+
+                    images = chroma_client.similarity_search(
                         img_query,
                         k=30,  # Buscar mais para cobrir múltiplos documentos
                         filter={"type": "image"}
@@ -223,14 +230,31 @@ if modo_api:
                     for img in images:
                         doc_id = img.metadata.get('doc_id')
                         if doc_id and doc_id not in seen_doc_ids:
-                            found_images.append(img)
-                            seen_doc_ids.add(doc_id)
+                            # ✅ Validar se doc_id existe no docstore ANTES de adicionar
+                            # (previne chunks órfãos de aparecer)
+                            global _docstore
+                            if _docstore and hasattr(_docstore, 'mget'):
+                                try:
+                                    doc_obj = _docstore.mget([doc_id])[0]
+                                    if doc_obj:
+                                        found_images.append(img)
+                                        seen_doc_ids.add(doc_id)
+                                    else:
+                                        print(f"      ⚠️ Chunk órfão ignorado: {doc_id}")
+                                except:
+                                    print(f"      ⚠️ Erro ao validar doc_id {doc_id}, ignorando...")
+                                    continue
+                            else:
+                                # Se docstore não disponível, adicionar mesmo assim
+                                found_images.append(img)
+                                seen_doc_ids.add(doc_id)
 
                             if len(found_images) >= max_images:
                                 break
 
                 except Exception as e:
                     print(f"      ⚠️ Erro na busca com filtro: {str(e)[:100]}")
+                    print(f"         Tentando continuar sem imagens...")
                     continue
 
                 if len(found_images) >= max_images:
@@ -2909,7 +2933,14 @@ else:
 
             for img_query in image_queries:
                 try:
-                    images = vectorstore_instance.similarity_search(
+                    # 🛡️ FIX: Buscar diretamente no Chroma SEM usar MultiVectorRetriever
+                    # (isso evita o erro "Error finding id" de chunks órfãos)
+                    from langchain_chroma import Chroma
+
+                    # Usar o vectorstore do Chroma diretamente (não o MultiVectorRetriever)
+                    chroma_client = vectorstore_instance.vectorstore if hasattr(vectorstore_instance, 'vectorstore') else vectorstore_instance
+
+                    images = chroma_client.similarity_search(
                         img_query,
                         k=20,
                         filter={"type": "image"}
@@ -2918,14 +2949,31 @@ else:
                     for img in images:
                         doc_id = img.metadata.get('doc_id')
                         if doc_id and doc_id not in seen_doc_ids:
-                            found_images.append(img)
-                            seen_doc_ids.add(doc_id)
+                            # ✅ Validar se doc_id existe no docstore ANTES de adicionar
+                            # (previne chunks órfãos de aparecer)
+                            global _docstore
+                            if _docstore and hasattr(_docstore, 'mget'):
+                                try:
+                                    doc_obj = _docstore.mget([doc_id])[0]
+                                    if doc_obj:
+                                        found_images.append(img)
+                                        seen_doc_ids.add(doc_id)
+                                    else:
+                                        print(f"      ⚠️ Chunk órfão ignorado: {doc_id}")
+                                except:
+                                    print(f"      ⚠️ Erro ao validar doc_id {doc_id}, ignorando...")
+                                    continue
+                            else:
+                                # Se docstore não disponível, adicionar mesmo assim
+                                found_images.append(img)
+                                seen_doc_ids.add(doc_id)
 
                             if len(found_images) >= max_images:
                                 break
 
                 except Exception as e:
                     print(f"      ⚠️ Erro na busca com filtro: {str(e)[:100]}")
+                    print(f"         Tentando continuar sem imagens...")
                     continue
 
                 if len(found_images) >= max_images:
