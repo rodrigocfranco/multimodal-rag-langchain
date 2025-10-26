@@ -387,11 +387,12 @@ def convert_image_to_jpeg_base64(image_base64_str, auto_rotate=False):
             aspect_ratio = height / width if width > 0 else 1
 
             if aspect_ratio > 1.5:
-                # Rotacionar 90° no sentido anti-horário (counterclockwise)
-                # Isso transforma portrait → landscape
-                img = img.rotate(90, expand=True)
-                rotation_applied = 90
-                print(f"      🔄 Imagem rotacionada 90° (aspect ratio: {aspect_ratio:.2f})")
+                # Rotacionar -90° (270°) no sentido horário (clockwise)
+                # Tabelas verticais geralmente estão rotacionadas 90° para direita no PDF
+                # Então precisamos rotacionar -90° para corrigir
+                img = img.rotate(-90, expand=True)
+                rotation_applied = -90
+                print(f"      🔄 Imagem rotacionada -90° HORÁRIO (aspect ratio: {aspect_ratio:.2f})")
 
         # Converter para RGB (remove alpha channel se houver)
         # Isso é necessário porque JPEG não suporta transparência
