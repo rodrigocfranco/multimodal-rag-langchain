@@ -45,22 +45,49 @@ def limpar_chunks_orfaos(persist_directory: str = "./knowledge"):
     total_chunks = len(all_results['ids'])
     print(f"   ✓ Total de chunks no Chroma: {total_chunks}")
 
-    # 3. Identificar chunks órfãos
-    print("\n3️⃣ Identificando chunks órfãos...")
+    # 3. Carregar docstore para validação profunda
+    print("\n3️⃣ Carregando docstore...")
+    import pickle
+    docstore_path = f"{persist_directory}/docstore.pkl"
+    docstore_ids = set()
+
+    if os.path.exists(docstore_path):
+        try:
+            with open(docstore_path, 'rb') as f:
+                docstore = pickle.load(f)
+                docstore_ids = set(docstore.keys())
+                print(f"   ✓ Docstore com {len(docstore_ids)} doc_ids válidos")
+        except Exception as e:
+            print(f"   ⚠️  Erro ao carregar docstore: {str(e)}")
+    else:
+        print(f"   ⚠️  Docstore não encontrado em {docstore_path}")
+
+    # 4. Identificar chunks órfãos (DUAS VALIDAÇÕES)
+    print("\n4️⃣ Identificando chunks órfãos...")
     orphan_chunk_ids = []
     valid_chunk_ids = []
 
     for i, meta in enumerate(all_results.get('metadatas', [])):
         chunk_id = all_results['ids'][i]
         filename = meta.get('filename')
+        doc_id = meta.get('doc_id')
         source = meta.get('source', 'N/A')
 
-        # Chunk órfão = filename é None, vazio, ou ausente
+        # VALIDAÇÃO 1: Chunk órfão = filename é None, vazio, ou ausente
+        orphan_reason = None
         if filename is None or filename == '' or filename == 'N/A':
+            orphan_reason = "filename_missing"
+        # VALIDAÇÃO 2: doc_id não existe no docstore
+        elif doc_id and docstore_ids and doc_id not in docstore_ids:
+            orphan_reason = "doc_id_not_in_docstore"
+
+        if orphan_reason:
             orphan_chunk_ids.append({
                 'id': chunk_id,
                 'source': source,
-                'type': meta.get('type', 'unknown')
+                'type': meta.get('type', 'unknown'),
+                'reason': orphan_reason,
+                'doc_id': doc_id
             })
         else:
             valid_chunk_ids.append(chunk_id)
@@ -77,9 +104,19 @@ def limpar_chunks_orfaos(persist_directory: str = "./knowledge"):
     from collections import Counter
     orphan_sources = [c['source'] for c in orphan_chunk_ids]
     orphan_types = [c['type'] for c in orphan_chunk_ids]
+    orphan_reasons = [c['reason'] for c in orphan_chunk_ids]
 
     source_counts = Counter(orphan_sources)
     type_counts = Counter(orphan_types)
+    reason_counts = Counter(orphan_reasons)
+
+    print("\n   Por razão:")
+    for reason, count in reason_counts.most_common():
+        reason_label = {
+            'filename_missing': '❌ Sem filename',
+            'doc_id_not_in_docstore': '🔗 doc_id não existe no docstore'
+        }.get(reason, reason)
+        print(f"      - {reason_label}: {count} chunks")
 
     print("\n   Por source:")
     for source, count in source_counts.most_common():
