@@ -70,6 +70,11 @@ if modo_api:
             # Abrir imagem com PIL
             img = Image.open(io.BytesIO(image_bytes))
 
+            # 🔥 RESIZE TO MAX 1024x1024 TO REDUCE TOKENS (fix context length exceeded)
+            MAX_SIZE = 1024
+            if img.width > MAX_SIZE or img.height > MAX_SIZE:
+                img.thumbnail((MAX_SIZE, MAX_SIZE), Image.Resampling.LANCZOS)
+
             # Converter para RGB (remove alpha channel se houver)
             # Isso é necessário porque JPEG não suporta transparência
             if img.mode in ('RGBA', 'LA', 'P'):
@@ -2826,6 +2831,11 @@ else:
 
             # Abrir imagem com PIL
             img = Image.open(io.BytesIO(image_bytes))
+
+            # 🔥 RESIZE TO MAX 1024x1024 TO REDUCE TOKENS (fix context length exceeded)
+            MAX_SIZE = 1024
+            if img.width > MAX_SIZE or img.height > MAX_SIZE:
+                img.thumbnail((MAX_SIZE, MAX_SIZE), Image.Resampling.LANCZOS)
 
             # Converter para RGB (remove alpha channel se houver)
             # Isso é necessário porque JPEG não suporta transparência
