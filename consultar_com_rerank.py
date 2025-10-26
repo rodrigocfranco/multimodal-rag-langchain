@@ -221,11 +221,17 @@ if modo_api:
                     # Usar o vectorstore do Chroma diretamente (não o MultiVectorRetriever)
                     chroma_client = vectorstore_instance.vectorstore if hasattr(vectorstore_instance, 'vectorstore') else vectorstore_instance
 
-                    images = chroma_client.similarity_search(
-                        img_query,
-                        k=30,  # Buscar mais para cobrir múltiplos documentos
-                        filter={"type": "image"}
-                    )
+                    try:
+                        images = chroma_client.similarity_search(
+                            img_query,
+                            k=30,  # Buscar mais para cobrir múltiplos documentos
+                            filter={"type": "image"}
+                        )
+                    except Exception as e:
+                        # Error finding id = chunks órfãos no Chroma
+                        print(f"      ⚠️ Erro no Chroma (chunks órfãos): {str(e)[:80]}")
+                        print(f"         Use 'Limpar Órfãos' no admin para resolver!")
+                        images = []
 
                     for img in images:
                         doc_id = img.metadata.get('doc_id')
