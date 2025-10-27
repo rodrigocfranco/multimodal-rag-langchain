@@ -208,11 +208,35 @@ if modo_api:
         """
         print(f"   🖼️ Buscando imagens relevantes para enriquecer resposta...")
 
-        # Buscar DIRETAMENTE por imagens usando a query original
-        # O embedding semântico vai encontrar imagens relacionadas ao tema
+        # 🔥 EXTRAIR KEYWORDS DA QUERY PARA BUSCA MAIS PRECISA
         try:
-            # Usar apenas a query original - o modelo de embeddings é inteligente!
-            image_queries = [question]
+            from keybert import KeyBERT
+            kw_model = KeyBERT()
+            # Extrair top 3 keywords/phrases
+            keywords = kw_model.extract_keywords(
+                question,
+                keyphrase_ngram_range=(1, 3),
+                stop_words='portuguese',
+                top_n=3,
+                use_maxsum=True
+            )
+            # Pegar apenas os termos (ignorar scores)
+            extracted_terms = [kw[0] for kw in keywords]
+            print(f"      🔑 Keywords extraídas: {extracted_terms}")
+        except Exception as e:
+            print(f"      ⚠️ KeyBERT falhou, usando regex fallback...")
+            # Fallback: extrair substantivos usando regex simples
+            import re
+            words = re.findall(r'\b[a-záàâãéèêíïóôõöúçñ]{4,}\b', question.lower())
+            # Remover stopwords comuns
+            stopwords = {'para', 'como', 'qual', 'quais', 'sobre', 'explique', 'mostre'}
+            extracted_terms = [w for w in words if w not in stopwords][:3]
+            print(f"      🔑 Termos extraídos (fallback): {extracted_terms}")
+
+        # Buscar DIRETAMENTE por imagens usando query original + keywords
+        try:
+            # Combinar query original com keywords extraídas
+            image_queries = [question] + extracted_terms
 
             found_images = []
             seen_doc_ids = set()
