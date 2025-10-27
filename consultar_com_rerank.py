@@ -209,6 +209,7 @@ if modo_api:
         print(f"   🖼️ Buscando imagens relevantes para enriquecer resposta...")
 
         # 🔥 EXTRAIR KEYWORDS DA QUERY PARA BUSCA MAIS PRECISA
+        extracted_terms = []
         try:
             from keybert import KeyBERT
             kw_model = KeyBERT()
@@ -221,17 +222,21 @@ if modo_api:
                 use_maxsum=True
             )
             # Pegar apenas os termos (ignorar scores)
-            extracted_terms = [kw[0] for kw in keywords]
-            print(f"      🔑 Keywords extraídas: {extracted_terms}")
+            extracted_terms = [kw[0] for kw in keywords] if keywords else []
+            if extracted_terms:
+                print(f"      🔑 Keywords extraídas (KeyBERT): {extracted_terms}")
         except Exception as e:
-            print(f"      ⚠️ KeyBERT falhou, usando regex fallback...")
-            # Fallback: extrair substantivos usando regex simples
+            print(f"      ⚠️ KeyBERT falhou: {str(e)}")
+
+        # FALLBACK: Se KeyBERT não extraiu nada, usar regex
+        if not extracted_terms:
+            print(f"      🔄 Usando fallback regex para extração de termos...")
             import re
             words = re.findall(r'\b[a-záàâãéèêíïóôõöúçñ]{4,}\b', question.lower())
             # Remover stopwords comuns
-            stopwords = {'para', 'como', 'qual', 'quais', 'sobre', 'explique', 'mostre'}
+            stopwords = {'para', 'como', 'qual', 'quais', 'sobre', 'explique', 'mostre', 'está', 'deve', 'pode', 'quando', 'onde'}
             extracted_terms = [w for w in words if w not in stopwords][:3]
-            print(f"      🔑 Termos extraídos (fallback): {extracted_terms}")
+            print(f"      🔑 Termos extraídos (fallback regex): {extracted_terms}")
 
         # Buscar DIRETAMENTE por imagens usando query original + keywords
         try:
