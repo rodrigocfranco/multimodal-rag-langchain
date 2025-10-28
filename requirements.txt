@@ -12,10 +12,10 @@ chromadb
 langchain-chroma
 tiktoken
 
-# LangChain (PINNED versions known to work together - web research Jan 2025)
+# LangChain (PINNED versions - fixed dependency conflict)
 langchain==0.3.10
 langchain-community==0.3.16
-langchain-core==0.3.22
+langchain-core==0.3.25
 langchain-openai==0.2.11
 langchain-groq==0.2.1
 langchain-text-splitters==0.3.3
