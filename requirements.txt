@@ -12,15 +12,15 @@ chromadb
 langchain-chroma
 tiktoken
 
-# LangChain
-langchain
-langchain-community
-langchain-openai
-langchain-groq
+# LangChain (minimal version constraints to fix resolution-too-deep error)
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-openai>=0.2.0
+langchain-groq>=0.2.0
 
 # Cohere (para reranking - melhora precisão em 30-40%)
-langchain-cohere
-cohere
+langchain-cohere>=0.3.0
+cohere>=5.0.0
 
 # BM25 for Hybrid Search (keyword-based retrieval)
 rank-bm25
