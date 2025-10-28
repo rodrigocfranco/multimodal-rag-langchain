@@ -12,17 +12,17 @@ chromadb
 langchain-chroma
 tiktoken
 
-# LangChain (PINNED versions - fixed dependency conflict)
-langchain==0.3.10
-langchain-community==0.3.16
-langchain-core==0.3.25
-langchain-openai==0.2.11
-langchain-groq==0.2.1
-langchain-text-splitters==0.3.3
+# LangChain (usando >= conforme orientação do Railway)
+langchain>=0.3.10
+langchain-community>=0.3.16
+langchain-core>=0.3.25
+langchain-openai>=0.2.11
+langchain-groq>=0.2.1
+langchain-text-splitters>=0.3.3
 
 # Cohere (para reranking - melhora precisão em 30-40%)
-langchain-cohere==0.3.1
-cohere==5.12.0
+langchain-cohere>=0.3.1
+cohere>=5.12.0
 
 # BM25 for Hybrid Search (keyword-based retrieval)
 rank-bm25
