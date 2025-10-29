@@ -1,6 +1,6 @@
 # Unstructured - para extração de dados de PDFs
 unstructured[all-docs]==0.16.15
-unstructured-inference==0.8.3
+unstructured-inference==0.8.10
 pdfminer.six==20231228  # Fix: Explicitly require pdfminer.six (not pdfminer)
 pillow==11.0.0
 lxml==5.3.0
@@ -37,8 +37,8 @@ sentence-transformers==3.3.1
 scikit-learn==1.6.0
 
 # API REST
-flask==3.1.0
-flask-cors==5.0.0
+flask==3.1.2
+flask-cors==5.0.1
 
 # Utilitários
 python-dotenv==1.0.1
