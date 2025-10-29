@@ -2888,14 +2888,14 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             "total_docs": num_docs if 'num_docs' in locals() else "unknown"
         })
 
-    @app.route('/test-direct-query', methods=['POST'])
+    @app.route('/test-direct-query', methods=['POST', 'GET'])
     def test_direct_query():
         """
         🔬 TESTE: Query direta no ChromaDB SEM usar HNSW index
         Bypass completo do similarity_search para testar se HNSW é o problema
         """
         try:
-            data = request.get_json()
+            data = request.get_json() or {}
             question = data.get('question', 'diabetes')
 
             result = {
