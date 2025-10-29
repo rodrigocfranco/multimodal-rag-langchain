@@ -247,6 +247,9 @@
             } catch (error) {
                 console.error('Error loading data:', error);
                 showToast('Erro ao carregar dados', 'error');
+                // 🔥 FIX: Esconder loading mesmo em caso de erro
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('tableContainer').style.display = 'block';
             }
         }
 
