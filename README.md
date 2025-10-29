@@ -98,13 +98,19 @@ A API estará disponível em `http://localhost:5001`
 
 ## Deploy no Railway
 
-> **✅ Versões Compatíveis**
+> **🚀 Versões Mais Recentes - Outubro 2025**
 >
-> Este projeto usa **ChromaDB 0.5.x** com **langchain-chroma 0.2.x**, que são totalmente compatíveis com LangChain 0.3.x.
+> Este projeto usa as **versões mais recentes e estáveis** de todas as dependências:
+> - **ChromaDB 1.3.0** (latest stable)
+> - **LangChain 1.0.2** (first stable major release)
+> - **LangChain-Core 1.0.1** (stable API)
+> - Python **3.10+** requerido (3.9 descontinuado)
 >
-> Se você já tinha um deploy anterior:
-> - ✅ **ChromaDB 0.5.23**: Volume continua funcionando, sem migração necessária
-> - ⚠️ **ChromaDB 1.0.x**: Requer atualizar todo stack LangChain para 1.x (breaking change maior)
+> ⚠️ **IMPORTANTE para deploys anteriores:**
+> - Se você tinha ChromaDB 0.5.x: **Delete o volume** no Railway (formato incompatível)
+> - Vá em Settings → Volumes → Delete Volume
+> - Railway criará novo volume automaticamente no próximo deploy
+> - Reprocesse seus PDFs após o deploy
 
 ### Método 1: Deploy Direto do GitHub (Recomendado)
 
