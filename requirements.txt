@@ -19,7 +19,7 @@ langchain-community>=0.3.31,<0.4.0
 langchain-core>=1.0.1,<2.0.0
 langchain-openai>=1.0.1,<2.0.0
 langchain-groq>=1.0.0,<2.0.0
-langchain-text-splitters>=0.3.3,<1.0.0
+langchain-text-splitters>=1.0.0,<2.0.0
 
 # Cohere (para reranking - melhora precisão em 30-40%)
 # Requires langchain-community<0.4.0,>=0.3.0
