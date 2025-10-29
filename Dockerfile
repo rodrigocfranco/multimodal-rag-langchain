@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 # Variáveis de ambiente para otimização
 ENV PIP_NO_CACHE_DIR=1 \
