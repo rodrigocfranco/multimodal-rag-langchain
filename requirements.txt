@@ -15,14 +15,15 @@ tiktoken>=0.8.0,<1.0.0
 # LangChain 1.x - LATEST STABLE (October 2025)
 # Python 3.10+ required (dropped 3.9 support)
 langchain>=1.0.2,<2.0.0
-langchain-community>=0.4.1,<1.0.0
+langchain-community>=0.3.31,<0.4.0
 langchain-core>=1.0.1,<2.0.0
 langchain-openai>=1.0.1,<2.0.0
 langchain-groq>=1.0.0,<2.0.0
 langchain-text-splitters>=0.3.3,<1.0.0
 
 # Cohere (para reranking - melhora precisão em 30-40%)
-langchain-cohere>=0.4.6,<1.0.0
+# Requires langchain-community<0.4.0,>=0.3.0
+langchain-cohere>=0.4.6,<0.5.0
 cohere>=5.12.0,<6.0.0
 
 # BM25 for Hybrid Search (keyword-based retrieval)
