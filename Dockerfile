@@ -33,7 +33,7 @@ COPY *.py .
 COPY *.html .
 
 # Criar diretório para base de conhecimento (volume será montado aqui)
-RUN mkdir -p /app/base
+RUN mkdir -p /app/db
 
 # Comando para iniciar a API
 CMD ["python", "consultar_com_rerank.py", "--api"]

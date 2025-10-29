@@ -5,7 +5,7 @@
 echo "🔄 Resetando ChromaDB incompatível (1.3→0.5 downgrade)"
 echo "=================================================="
 
-BASE_DIR="${PERSIST_DIR:-/app/base}"
+BASE_DIR="${PERSIST_DIR:-/app/db}"
 
 echo "📁 Base directory: $BASE_DIR"
 
