@@ -128,6 +128,26 @@ if modo_api:
                 return []
 
     # ===========================================================================
+    # 🔧 VECTORSTORE WRAPPER: Substitui similarity_search por busca manual
+    # ===========================================================================
+    class ManualSearchVectorstore:
+        """Wrapper que substitui similarity_search() por busca manual (bypass HNSW)"""
+
+        def __init__(self, vectorstore):
+            self._vectorstore = vectorstore
+            # Copiar atributos necessários
+            self._collection = vectorstore._collection
+            self._embedding_function = vectorstore._embedding_function
+
+        def similarity_search(self, query: str, k: int = 30, filter: dict = None, **kwargs):
+            """Override similarity_search para usar busca manual"""
+            return manual_similarity_search(self._vectorstore, query, k, filter)
+
+        def __getattr__(self, name):
+            """Delegar todos outros métodos para vectorstore original"""
+            return getattr(self._vectorstore, name)
+
+    # ===========================================================================
     # 🖼️ IMAGE CONVERSION: Convert all images to JPEG for GPT-4 Vision
     # ===========================================================================
     def convert_image_to_jpeg_base64(image_base64_str):
@@ -210,8 +230,11 @@ if modo_api:
     global _docstore
     _docstore = store
 
+    # 🔧 WRAP vectorstore para usar busca manual (bypass HNSW)
+    wrapped_vectorstore = ManualSearchVectorstore(vectorstore)
+
     base_retriever = MultiVectorRetriever(
-        vectorstore=vectorstore,
+        vectorstore=wrapped_vectorstore,
         docstore=store,
         id_key="doc_id",
         search_kwargs={"k": 30}  # ✅ OTIMIZADO: Aumentado para 30 para capturar info dispersa
@@ -556,9 +579,12 @@ hiperglicemia hipoglicemia controle glicose doente grave"""
             persist_directory=persist_directory
         )
 
+        # 🔧 WRAP fresh vectorstore para usar busca manual (bypass HNSW)
+        wrapped_fresh_vectorstore = ManualSearchVectorstore(fresh_vectorstore)
+
         # 3. Criar novo base_retriever com vectorstore e docstore atualizados
         fresh_base_retriever = MultiVectorRetriever(
-            vectorstore=fresh_vectorstore,
+            vectorstore=wrapped_fresh_vectorstore,
             docstore=fresh_store,
             id_key="doc_id",
             search_kwargs={"k": 30}
