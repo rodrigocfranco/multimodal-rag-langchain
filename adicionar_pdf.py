@@ -86,14 +86,20 @@ if existing_doc:
     print(f"   Adicionado em: {existing_doc.get('uploaded_at', 'desconhecido')}")
     print(f"   Chunks: {existing_doc.get('stats', {}).get('total_chunks', 0)}")
 
-    if os.getenv("AUTO_REPROCESS") != "true":
+    # Detectar se está em modo não-interativo (Railway, Docker, API)
+    import sys
+    is_non_interactive = not sys.stdin.isatty() or os.getenv("AUTO_REPROCESS") == "true"
+
+    if is_non_interactive:
+        # Modo automático (Railway, API, Docker)
+        print("\n🔄 Modo não-interativo detectado, reprocessando automaticamente...\n")
+    else:
+        # Modo interativo (terminal local)
         choice = input("\nReprocessar? (s/N): ")
         if choice.lower() != 's':
             print("❌ Processamento cancelado.")
             exit(0)
         print("\n🔄 Reprocessando documento...\n")
-    else:
-        print("\n🔄 AUTO_REPROCESS=true, reprocessando automaticamente...\n")
 
     # ✅ PREVENIR DUPLICAÇÃO: Deletar versão anterior antes de reprocessar
     print("🗑️  Deletando versão anterior para prevenir duplicação...")
