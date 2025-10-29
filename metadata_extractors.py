@@ -74,39 +74,24 @@ class KeywordExtractor:
             text = text[:max_chars]
 
         try:
-            import signal
+            # Extração com KeyBERT (modo rápido - sem MaxSum)
+            # NOTA: Removido signal.alarm() pois não funciona em ambientes containerizados (Railway)
+            keywords = self.kw_model.extract_keywords(
+                text,
+                keyphrase_ngram_range=(1, 2),  # Unigrams e bigrams
+                stop_words=None,
+                top_n=top_n,
+                use_maxsum=use_maxsum,  # False = mais rápido
+                nr_candidates=10,       # Reduzido de 20 para 10
+                diversity=diversity
+            )
 
-            # ⚡ TIMEOUT: Se KeyBERT demorar >5s, usar fallback regex
-            def timeout_handler(signum, frame):
-                raise TimeoutError("KeyBERT timeout")
-
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(timeout_seconds)
-
-            try:
-                # Extração com KeyBERT (modo rápido - sem MaxSum)
-                keywords = self.kw_model.extract_keywords(
-                    text,
-                    keyphrase_ngram_range=(1, 2),  # Unigrams e bigrams
-                    stop_words=None,
-                    top_n=top_n,
-                    use_maxsum=use_maxsum,  # False = mais rápido
-                    nr_candidates=10,       # Reduzido de 20 para 10
-                    diversity=diversity
-                )
-
-                signal.alarm(0)  # Cancelar alarme
-
-                # Retornar apenas as strings (sem scores)
-                return [kw[0] for kw in keywords]
-
-            except TimeoutError:
-                signal.alarm(0)
-                # Fallback: extração simples por regex (instantâneo)
-                return self._extract_keywords_regex_fallback(text, top_n)
+            # Retornar apenas as strings (sem scores)
+            return [kw[0] for kw in keywords]
 
         except Exception as e:
             print(f"      ⚠️  Erro ao extrair keywords: {str(e)[:100]}")
+            # Fallback: extração simples por regex (instantâneo)
             return self._extract_keywords_regex_fallback(text, top_n)
 
     def _extract_keywords_regex_fallback(self, text: str, top_n: int = 8) -> List[str]:
