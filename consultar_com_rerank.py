@@ -1688,6 +1688,17 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 with open(metadata_path, 'wb') as f:
                     pickle.dump(empty_metadata, f)
 
+            # 3.5. Recriar ChromaDB vazio (evita "no such table" error)
+            from langchain_chroma import Chroma
+            from langchain_openai import OpenAIEmbeddings
+
+            new_vectorstore = Chroma(
+                collection_name="knowledge_base",
+                embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),
+                persist_directory=persist_directory
+            )
+            deleted_files.append("chromadb_recreated")
+
             # 4. Enviar resposta ANTES do exit
             response = jsonify({
                 "success": True,
