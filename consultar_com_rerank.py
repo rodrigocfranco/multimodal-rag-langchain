@@ -1649,6 +1649,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             import shutil
             import os
             import signal
+            import time
 
             # 1. Deletar ChromaDB
             chroma_dir = f"{persist_directory}/chroma.sqlite3"
