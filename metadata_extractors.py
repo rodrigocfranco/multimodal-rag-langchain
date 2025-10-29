@@ -74,20 +74,46 @@ class KeywordExtractor:
             text = text[:max_chars]
 
         try:
-            # Extração com KeyBERT (modo rápido - sem MaxSum)
-            # NOTA: Removido signal.alarm() pois não funciona em ambientes containerizados (Railway)
-            keywords = self.kw_model.extract_keywords(
-                text,
-                keyphrase_ngram_range=(1, 2),  # Unigrams e bigrams
-                stop_words=None,
-                top_n=top_n,
-                use_maxsum=use_maxsum,  # False = mais rápido
-                nr_candidates=10,       # Reduzido de 20 para 10
-                diversity=diversity
-            )
+            # ⚡ TIMEOUT COM THREADING (funciona em containers, ao contrário de signal.alarm)
+            import threading
 
-            # Retornar apenas as strings (sem scores)
-            return [kw[0] for kw in keywords]
+            result_holder = {'keywords': None, 'error': None}
+
+            def extract_with_timeout():
+                try:
+                    result_holder['keywords'] = self.kw_model.extract_keywords(
+                        text,
+                        keyphrase_ngram_range=(1, 2),  # Unigrams e bigrams
+                        stop_words=None,
+                        top_n=top_n,
+                        use_maxsum=use_maxsum,  # False = mais rápido
+                        nr_candidates=10,       # Reduzido de 20 para 10
+                        diversity=diversity
+                    )
+                except Exception as e:
+                    result_holder['error'] = e
+
+            # Rodar em thread separada com timeout
+            thread = threading.Thread(target=extract_with_timeout, daemon=True)
+            thread.start()
+            thread.join(timeout=timeout_seconds)  # Timeout de 5 segundos
+
+            # Se thread ainda está rodando, usar fallback
+            if thread.is_alive():
+                print(f"      ⚠️  KeyBERT timeout ({timeout_seconds}s), usando fallback regex")
+                return self._extract_keywords_regex_fallback(text, top_n)
+
+            # Se houve erro na thread, usar fallback
+            if result_holder['error']:
+                print(f"      ⚠️  Erro ao extrair keywords: {str(result_holder['error'])[:100]}")
+                return self._extract_keywords_regex_fallback(text, top_n)
+
+            # Se sucesso, retornar keywords
+            if result_holder['keywords']:
+                return [kw[0] for kw in result_holder['keywords']]
+            else:
+                # Fallback se keywords veio None
+                return self._extract_keywords_regex_fallback(text, top_n)
 
         except Exception as e:
             print(f"      ⚠️  Erro ao extrair keywords: {str(e)[:100]}")
