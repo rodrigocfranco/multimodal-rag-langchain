@@ -1620,6 +1620,104 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
                 "trace": traceback.format_exc()
             }), 500
 
+    @app.route('/reset-and-restart', methods=['POST'])
+    def reset_and_restart():
+        """
+        🚨 EMERGÊNCIA: Reset ChromaDB + Restart automático da aplicação
+
+        Este endpoint:
+        1. Deleta e recria ChromaDB (igual /reset-chromadb)
+        2. Força restart da aplicação (exit) para limpar memória
+        3. Railway detecta exit e reinicia automaticamente
+
+        ⚠️ ATENÇÃO: Aplicação vai reiniciar (~30s downtime)
+
+        Uso:
+        curl -X POST https://seu-app.railway.app/reset-and-restart \
+          -H "Content-Type: application/json" \
+          -d '{"confirm": "RESET_AND_RESTART"}'
+        """
+        data = request.get_json()
+        if not data or data.get('confirm') != 'RESET_AND_RESTART':
+            return jsonify({
+                "error": "Confirmação obrigatória",
+                "message": "Envie {\"confirm\": \"RESET_AND_RESTART\"} para confirmar",
+                "warning": "Isso resetará ChromaDB E reiniciará a aplicação!"
+            }), 400
+
+        try:
+            import shutil
+            import os
+            import signal
+
+            # 1. Deletar ChromaDB
+            chroma_dir = f"{persist_directory}/chroma.sqlite3"
+            chroma_uuid_dirs = []
+
+            for item in os.listdir(persist_directory):
+                item_path = os.path.join(persist_directory, item)
+                if os.path.isdir(item_path) and len(item) == 36:
+                    chroma_uuid_dirs.append(item_path)
+
+            deleted_files = []
+            if os.path.exists(chroma_dir):
+                os.remove(chroma_dir)
+                deleted_files.append("chroma.sqlite3")
+
+            for uuid_dir in chroma_uuid_dirs:
+                shutil.rmtree(uuid_dir)
+                deleted_files.append(os.path.basename(uuid_dir))
+
+            # 2. Limpar docstore
+            docstore_path = f"{persist_directory}/docstore.pkl"
+            if os.path.exists(docstore_path):
+                empty_docstore = {}
+                with open(docstore_path, 'wb') as f:
+                    pickle.dump(empty_docstore, f)
+                os.utime(docstore_path, None)
+
+            # 3. Limpar metadata (resetar completamente)
+            metadata_path = f"{persist_directory}/metadata.pkl"
+            if os.path.exists(metadata_path):
+                empty_metadata = {
+                    "documents": {},
+                    "version": "1.0",
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                with open(metadata_path, 'wb') as f:
+                    pickle.dump(empty_metadata, f)
+
+            # 4. Enviar resposta ANTES do exit
+            response = jsonify({
+                "success": True,
+                "message": "ChromaDB resetado! Aplicação reiniciando em 2 segundos...",
+                "deleted_files": deleted_files,
+                "restart": True,
+                "next_steps": [
+                    "1. Aguarde 30 segundos para aplicação reiniciar",
+                    "2. Acesse /health para verificar se voltou",
+                    "3. Faça upload de PDFs via /ui"
+                ]
+            })
+
+            # 5. Agendar exit após retornar resposta
+            import threading
+            def delayed_exit():
+                time.sleep(2)
+                print("\n🔄 REINICIANDO APLICAÇÃO (forçado por reset-and-restart)...")
+                os.kill(os.getpid(), signal.SIGTERM)
+
+            threading.Thread(target=delayed_exit, daemon=True).start()
+
+            return response
+
+        except Exception as e:
+            import traceback
+            return jsonify({
+                "error": str(e),
+                "trace": traceback.format_exc()
+            }), 500
+
     @app.route('/', methods=['GET'])
     def home():
         """Página inicial com documentação"""
