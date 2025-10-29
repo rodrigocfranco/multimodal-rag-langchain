@@ -1,0 +1,49 @@
+# Configuração do Dependabot para monitorar atualizações de dependências
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # Monitorar requirements.txt (pip)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly" # Checa toda semana
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+
+    # Criar PRs separados para major/minor/patch
+    groups:
+      # Agrupar atualizações de patch (mais seguras)
+      patch-updates:
+        update-types:
+          - "patch"
+
+      # Agrupar atualizações minor (geralmente seguras)
+      minor-updates:
+        update-types:
+          - "minor"
+
+    # Reviewers automáticos (opcional)
+    # reviewers:
+    #   - "rodrigocfranco"
+
+    # Labels para PRs
+    labels:
+      - "dependencies"
+      - "automated"
+
+    # Ignorar atualizações de major (breaking changes)
+    # Você decide quando fazer essas manualmente
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Monitorar Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"

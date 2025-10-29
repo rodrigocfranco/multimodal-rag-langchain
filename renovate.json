@@ -1,0 +1,36 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "schedule": [
+    "before 10am on monday"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "pip_requirements": {
+    "fileMatch": ["^requirements\\.txt$"]
+  },
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch"],
+      "groupName": "patch dependencies",
+      "automerge": false
+    },
+    {
+      "matchUpdateTypes": ["minor"],
+      "groupName": "minor dependencies",
+      "automerge": false
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "enabled": false,
+      "groupName": "major dependencies (manual review required)"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  }
+}
