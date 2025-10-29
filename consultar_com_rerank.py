@@ -54,100 +54,6 @@ if modo_api:
     persist_directory = os.getenv("PERSIST_DIR", "./knowledge")
 
     # ===========================================================================
-    # 🔧 MANUAL SIMILARITY SEARCH: Bypass HNSW index usando numpy
-    # ===========================================================================
-    def manual_similarity_search(vectorstore, query: str, k: int = 30, filter: dict = None):
-        """
-        Busca manual por similaridade usando cálculo cosine direto (bypass HNSW).
-
-        Args:
-            vectorstore: ChromaDB vectorstore instance
-            query: Query string
-            k: Number of results
-            filter: Metadata filter (e.g., {"type": "image"})
-
-        Returns:
-            List[Document]: Resultados ordenados por similaridade
-        """
-        try:
-            import numpy as np
-            from langchain_openai import OpenAIEmbeddings
-            from langchain_core.documents import Document
-
-            # 1. Criar embedding da query
-            embeddings_model = OpenAIEmbeddings(model="text-embedding-3-large")
-            query_embedding = embeddings_model.embed_query(query)
-
-            # 2. Pegar TODOS os chunks (ou filtrados)
-            collection = vectorstore._collection
-
-            if filter:
-                # Aplicar filtro de metadata
-                all_data = collection.get(
-                    where=filter,
-                    include=['metadatas', 'documents', 'embeddings']
-                )
-            else:
-                all_data = collection.get(
-                    include=['metadatas', 'documents', 'embeddings']
-                )
-
-            if len(all_data['ids']) == 0:
-                return []
-
-            # 3. Calcular similaridade cosine manualmente
-            similarities = []
-            for i, emb in enumerate(all_data['embeddings']):
-                # Cosine similarity = dot(A,B) / (norm(A) * norm(B))
-                sim = np.dot(query_embedding, emb) / (np.linalg.norm(query_embedding) * np.linalg.norm(emb))
-                similarities.append((i, sim))
-
-            # 4. Top K mais similares
-            top_k = sorted(similarities, key=lambda x: x[1], reverse=True)[:k]
-
-            # 5. Converter para Documents
-            results = []
-            for idx, score in top_k:
-                doc = Document(
-                    page_content=all_data['documents'][idx],
-                    metadata=all_data['metadatas'][idx]
-                )
-                results.append(doc)
-
-            return results
-
-        except Exception as e:
-            print(f"   ⚠️ Manual search failed: {str(e)}")
-            # Fallback: tentar similarity_search normal
-            try:
-                if filter:
-                    return vectorstore.similarity_search(query, k=k, filter=filter)
-                else:
-                    return vectorstore.similarity_search(query, k=k)
-            except:
-                return []
-
-    # ===========================================================================
-    # 🔧 VECTORSTORE WRAPPER: Substitui similarity_search por busca manual
-    # ===========================================================================
-    class ManualSearchVectorstore:
-        """Wrapper que substitui similarity_search() por busca manual (bypass HNSW)"""
-
-        def __init__(self, vectorstore):
-            self._vectorstore = vectorstore
-            # Copiar atributos necessários
-            self._collection = vectorstore._collection
-            self._embedding_function = vectorstore._embedding_function
-
-        def similarity_search(self, query: str, k: int = 30, filter: dict = None, **kwargs):
-            """Override similarity_search para usar busca manual"""
-            return manual_similarity_search(self._vectorstore, query, k, filter)
-
-        def __getattr__(self, name):
-            """Delegar todos outros métodos para vectorstore original"""
-            return getattr(self._vectorstore, name)
-
-    # ===========================================================================
     # 🖼️ IMAGE CONVERSION: Convert all images to JPEG for GPT-4 Vision
     # ===========================================================================
     def convert_image_to_jpeg_base64(image_base64_str):
@@ -230,11 +136,8 @@ if modo_api:
     global _docstore
     _docstore = store
 
-    # 🔧 WRAP vectorstore para usar busca manual (bypass HNSW)
-    wrapped_vectorstore = ManualSearchVectorstore(vectorstore)
-
     base_retriever = MultiVectorRetriever(
-        vectorstore=wrapped_vectorstore,
+        vectorstore=vectorstore,
         docstore=store,
         id_key="doc_id",
         search_kwargs={"k": 30}  # ✅ OTIMIZADO: Aumentado para 30 para capturar info dispersa
@@ -355,9 +258,7 @@ if modo_api:
                     chroma_client = vectorstore_instance.vectorstore if hasattr(vectorstore_instance, 'vectorstore') else vectorstore_instance
 
                     try:
-                        # 🔧 USAR BUSCA MANUAL (bypass HNSW)
-                        images = manual_similarity_search(
-                            chroma_client,
+                        images = chroma_client.similarity_search(
                             img_query,
                             k=30,  # Buscar mais para cobrir múltiplos documentos
                             filter={"type": "image"}
@@ -579,12 +480,9 @@ hiperglicemia hipoglicemia controle glicose doente grave"""
             persist_directory=persist_directory
         )
 
-        # 🔧 WRAP fresh vectorstore para usar busca manual (bypass HNSW)
-        wrapped_fresh_vectorstore = ManualSearchVectorstore(fresh_vectorstore)
-
         # 3. Criar novo base_retriever com vectorstore e docstore atualizados
         fresh_base_retriever = MultiVectorRetriever(
-            vectorstore=wrapped_fresh_vectorstore,
+            vectorstore=fresh_vectorstore,
             docstore=fresh_store,
             id_key="doc_id",
             search_kwargs={"k": 30}
@@ -1147,9 +1045,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
 
                     # Buscar imagens
                     try:
-                        # 🔧 USAR BUSCA MANUAL (bypass HNSW)
-                        images = manual_similarity_search(
-                            fresh_vectorstore,
+                        images = fresh_vectorstore.similarity_search(
                             question,
                             k=3,
                             filter={"type": "image"}
@@ -1161,9 +1057,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
 
                     # Buscar tabelas
                     try:
-                        # 🔧 USAR BUSCA MANUAL (bypass HNSW)
-                        tables = manual_similarity_search(
-                            fresh_vectorstore,
+                        tables = fresh_vectorstore.similarity_search(
                             question,
                             k=2,
                             filter={"type": "table"}
