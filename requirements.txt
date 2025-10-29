@@ -1,44 +1,38 @@
 # Unstructured - para extração de dados de PDFs
-# Deixar pip resolver versões compatíveis automaticamente
-unstructured[all-docs]>=0.16.9,<0.17.0
-pdfminer.six>=20231228  # Fix: Explicitly require pdfminer.six (not pdfminer)
-pillow>=11.0.0,<12.0.0
-lxml>=5.3.0,<6.0.0
+unstructured[all-docs]
+unstructured-inference
+pillow
+lxml
 
 # OpenCV (headless para ambientes sem GUI)
-opencv-python-headless==4.10.0.84
+opencv-python-headless
 
 # Vector store e embeddings
-chromadb>=0.5.0,<0.6.0  # DOWNGRADE: 0.5.x estável (HNSW funciona perfeitamente)
-langchain-chroma>=0.2.3,<0.3.0
-tiktoken>=0.8.0,<1.0.0
+chromadb
+langchain-chroma
+tiktoken
 
-# LangChain 0.3.x - LATEST COMPATIBLE WITH COHERE
-# langchain-cohere 0.4.6 requires langchain-core<0.4.0
-# Python 3.10+ required
-langchain>=0.3.27,<0.4.0
-langchain-community>=0.3.31,<0.4.0
-langchain-core>=0.3.79,<0.4.0
-langchain-openai>=0.2.11,<0.3.0
-langchain-groq>=0.2.1,<0.3.0
-langchain-text-splitters>=0.3.9,<0.4.0
+# LangChain
+langchain
+langchain-community
+langchain-openai
+langchain-groq
 
 # Cohere (para reranking - melhora precisão em 30-40%)
-# Requires langchain-core<0.4.0,>=0.3.76
-langchain-cohere>=0.4.6,<0.5.0
-cohere>=5.12.0,<6.0.0
+langchain-cohere
+cohere
 
 # BM25 for Hybrid Search (keyword-based retrieval)
-rank-bm25==0.2.2
+rank-bm25
 
 # Metadata Enrichment (P0-3)
-keybert==0.8.5
-sentence-transformers==3.3.1
-scikit-learn==1.6.0
+keybert
+sentence-transformers
+scikit-learn
 
 # API REST
-flask==3.1.0
-flask-cors==5.0.0
+flask
+flask-cors
 
 # Utilitários
-python-dotenv==1.0.1
+python-dotenv
