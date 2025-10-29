@@ -1509,7 +1509,117 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             return jsonify(volume_info)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-    
+
+    @app.route('/reset-chromadb', methods=['POST'])
+    def reset_chromadb():
+        """
+        🚨 EMERGÊNCIA: Reset completo do ChromaDB corrompido
+
+        Deleta e recria o ChromaDB do zero quando há erro:
+        "Error creating hnsw segment reader: Nothing found on disk"
+
+        ⚠️ ATENÇÃO: Isso apaga TODOS os embeddings!
+        Os documentos em docstore.pkl e metadata.pkl são preservados.
+        Você precisará reprocessar os PDFs após o reset.
+
+        Uso:
+        curl -X POST https://seu-app.railway.app/reset-chromadb \
+          -H "Content-Type: application/json" \
+          -d '{"confirm": "RESET"}'
+        """
+        global _cached_retriever, _last_docstore_mtime, vectorstore
+
+        data = request.get_json()
+        if not data or data.get('confirm') != 'RESET':
+            return jsonify({
+                "error": "Confirmação obrigatória",
+                "message": "Envie {\"confirm\": \"RESET\"} para confirmar reset completo",
+                "warning": "Isso apagará TODOS os embeddings do ChromaDB!"
+            }), 400
+
+        try:
+            import shutil
+
+            # 1. Backup metadata (preservar lista de documentos)
+            metadata_path = f"{persist_directory}/metadata.pkl"
+            metadata_backup = None
+            if os.path.exists(metadata_path):
+                with open(metadata_path, 'rb') as f:
+                    metadata_backup = pickle.load(f)
+
+            # 2. Deletar diretório do ChromaDB
+            chroma_dir = f"{persist_directory}/chroma.sqlite3"
+            chroma_uuid_dirs = []
+
+            # Encontrar diretórios UUID do ChromaDB
+            for item in os.listdir(persist_directory):
+                item_path = os.path.join(persist_directory, item)
+                if os.path.isdir(item_path) and len(item) == 36:  # UUID format
+                    chroma_uuid_dirs.append(item_path)
+
+            # Deletar arquivo sqlite
+            deleted_files = []
+            if os.path.exists(chroma_dir):
+                os.remove(chroma_dir)
+                deleted_files.append("chroma.sqlite3")
+
+            # Deletar diretórios UUID
+            for uuid_dir in chroma_uuid_dirs:
+                shutil.rmtree(uuid_dir)
+                deleted_files.append(os.path.basename(uuid_dir))
+
+            # 3. Limpar docstore (os docs serão reprocessados)
+            docstore_path = f"{persist_directory}/docstore.pkl"
+            if os.path.exists(docstore_path):
+                empty_docstore = {}
+                with open(docstore_path, 'wb') as f:
+                    pickle.dump(empty_docstore, f)
+                os.utime(docstore_path, None)
+                deleted_files.append("docstore.pkl (cleared)")
+
+            # 4. Recriar ChromaDB do zero
+            new_vectorstore = Chroma(
+                collection_name="knowledge_base",
+                embedding_function=OpenAIEmbeddings(model="text-embedding-3-large"),
+                persist_directory=persist_directory
+            )
+
+            # 5. Atualizar referência global
+            vectorstore = new_vectorstore
+
+            # 6. Invalidar cache
+            _cached_retriever = None
+            _last_docstore_mtime = None
+
+            # 7. Restaurar metadata (para /documents continuar funcionando)
+            if metadata_backup:
+                # Marcar todos documentos como "needs_reprocessing"
+                for doc_id in metadata_backup.get('documents', {}).keys():
+                    metadata_backup['documents'][doc_id]['status'] = 'needs_reprocessing'
+
+                with open(metadata_path, 'wb') as f:
+                    pickle.dump(metadata_backup, f)
+
+            return jsonify({
+                "success": True,
+                "message": "ChromaDB resetado com sucesso!",
+                "deleted_files": deleted_files,
+                "next_steps": [
+                    "1. Acesse /ui para fazer upload dos PDFs novamente",
+                    "2. Ou use POST /upload para reprocessar via API",
+                    "3. Os documentos serão reindexados do zero"
+                ],
+                "documents_registered": len(metadata_backup.get('documents', {})) if metadata_backup else 0,
+                "warning": "Todos documentos precisam ser reprocessados"
+            })
+
+        except Exception as e:
+            import traceback
+            return jsonify({
+                "error": str(e),
+                "trace": traceback.format_exc()
+            }), 500
+
     @app.route('/', methods=['GET'])
     def home():
         """Página inicial com documentação"""
