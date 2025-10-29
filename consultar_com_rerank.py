@@ -1136,7 +1136,40 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
     
     @app.route('/health', methods=['GET'])
     def health():
-        return jsonify({"status": "ok", "reranker": "cohere"})
+        """
+        Healthcheck endpoint para Railway.
+        Retorna 200 apenas quando a aplicação está pronta para receber requisições.
+        """
+        try:
+            # Verificar se o retriever está inicializado
+            global retriever
+            if retriever is None:
+                return jsonify({
+                    "status": "initializing",
+                    "message": "Retriever not ready yet"
+                }), 503
+
+            # Verificar se o vectorstore está acessível
+            persist_dir = os.getenv('PERSIST_DIR', './knowledge')
+            if not os.path.exists(persist_dir):
+                return jsonify({
+                    "status": "initializing",
+                    "message": "Knowledge base directory not found"
+                }), 503
+
+            # Tudo OK - aplicação pronta
+            return jsonify({
+                "status": "ok",
+                "reranker": "cohere",
+                "persist_dir": persist_dir,
+                "ready": True
+            }), 200
+
+        except Exception as e:
+            return jsonify({
+                "status": "error",
+                "message": str(e)
+            }), 503
 
     @app.route('/debug-volume', methods=['GET'])
     def debug_volume():
