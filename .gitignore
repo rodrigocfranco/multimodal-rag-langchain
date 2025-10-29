@@ -53,5 +53,5 @@ GUIA_N8N.md
 RERANKER.md
 .railwayignore
 
-# Conteúdo (PDFs) - não versionar para reduzir tamanho do repo
-content/*.pdf
+# Conteúdo (PDFs) - pasta removida (upload via /ui ou API agora)
+content/

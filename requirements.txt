@@ -1,6 +1,7 @@
 # Unstructured - para extração de dados de PDFs
-unstructured[all-docs]==0.16.9
-unstructured-inference==0.8.1
+unstructured[all-docs]==0.16.15
+unstructured-inference==0.8.3
+pdfminer.six==20231228  # Fix: Explicitly require pdfminer.six (not pdfminer)
 pillow==11.0.0
 lxml==5.3.0
 
