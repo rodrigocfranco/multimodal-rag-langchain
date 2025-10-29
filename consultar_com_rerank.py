@@ -2886,6 +2886,132 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             "total_docs": num_docs if 'num_docs' in locals() else "unknown"
         })
 
+    @app.route('/test-direct-query', methods=['POST'])
+    def test_direct_query():
+        """
+        🔬 TESTE: Query direta no ChromaDB SEM usar HNSW index
+        Bypass completo do similarity_search para testar se HNSW é o problema
+        """
+        try:
+            data = request.get_json()
+            question = data.get('question', 'diabetes')
+
+            result = {
+                "question": question,
+                "timestamp": time.time(),
+                "tests": {}
+            }
+
+            # TESTE 1: Acessar collection diretamente via ChromaDB client
+            print(f"\n🔬 TESTE 1: Acesso direto à collection")
+            try:
+                collection = vectorstore._collection
+
+                # Pegar primeiros 10 chunks SEM fazer similarity search (bypass HNSW)
+                raw_data = collection.get(
+                    limit=10,
+                    include=['metadatas', 'documents', 'embeddings']
+                )
+
+                result["tests"]["direct_get"] = {
+                    "success": True,
+                    "count": len(raw_data['ids']),
+                    "sample_ids": raw_data['ids'][:3],
+                    "sample_metadata": raw_data['metadatas'][:3] if raw_data['metadatas'] else []
+                }
+                print(f"   ✓ Direct get: {len(raw_data['ids'])} chunks retrieved")
+
+            except Exception as e:
+                result["tests"]["direct_get"] = {
+                    "success": False,
+                    "error": str(e)
+                }
+                print(f"   ✗ Direct get failed: {str(e)}")
+
+            # TESTE 2: Query usando embeddings manualmente (sem HNSW)
+            print(f"\n🔬 TESTE 2: Embedding + busca manual (bypass HNSW)")
+            try:
+                from langchain_openai import OpenAIEmbeddings
+                embeddings_model = OpenAIEmbeddings(model="text-embedding-3-large")
+
+                # Criar embedding da query
+                query_embedding = embeddings_model.embed_query(question)
+
+                # Pegar TODOS os chunks com embeddings
+                all_data = collection.get(
+                    include=['metadatas', 'documents', 'embeddings']
+                )
+
+                # Calcular similaridade cosine manualmente
+                import numpy as np
+
+                similarities = []
+                for i, emb in enumerate(all_data['embeddings']):
+                    # Cosine similarity
+                    sim = np.dot(query_embedding, emb) / (np.linalg.norm(query_embedding) * np.linalg.norm(emb))
+                    similarities.append((i, sim))
+
+                # Top 5 mais similares
+                top_5 = sorted(similarities, key=lambda x: x[1], reverse=True)[:5]
+
+                manual_results = []
+                for idx, score in top_5:
+                    manual_results.append({
+                        "chunk_id": all_data['ids'][idx],
+                        "similarity": float(score),
+                        "type": all_data['metadatas'][idx].get('type', 'unknown'),
+                        "filename": all_data['metadatas'][idx].get('filename', 'unknown'),
+                        "preview": all_data['documents'][idx][:100] if all_data['documents'][idx] else 'N/A'
+                    })
+
+                result["tests"]["manual_embedding_search"] = {
+                    "success": True,
+                    "total_chunks": len(all_data['ids']),
+                    "top_5_results": manual_results
+                }
+                print(f"   ✓ Manual search: {len(manual_results)} resultados (bypass HNSW completo!)")
+
+            except Exception as e:
+                result["tests"]["manual_embedding_search"] = {
+                    "success": False,
+                    "error": str(e)
+                }
+                print(f"   ✗ Manual search failed: {str(e)}")
+
+            # TESTE 3: Tentar similarity_search normal (esperado falhar com HNSW)
+            print(f"\n🔬 TESTE 3: similarity_search normal (HNSW)")
+            try:
+                normal_results = vectorstore.similarity_search(question, k=5)
+
+                result["tests"]["normal_similarity_search"] = {
+                    "success": True,
+                    "count": len(normal_results),
+                    "results": [
+                        {
+                            "type": r.metadata.get('type'),
+                            "filename": r.metadata.get('filename'),
+                            "preview": r.page_content[:100]
+                        }
+                        for r in normal_results[:3]
+                    ]
+                }
+                print(f"   ✓ Normal search: {len(normal_results)} resultados (HNSW funcionando!)")
+
+            except Exception as e:
+                result["tests"]["normal_similarity_search"] = {
+                    "success": False,
+                    "error": str(e)
+                }
+                print(f"   ✗ Normal search failed: {str(e)}")
+
+            return jsonify(result)
+
+        except Exception as e:
+            return jsonify({
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }), 500
+
     @app.route('/upload-stream', methods=['POST'])
     def upload_stream():
         # API Key opcional
