@@ -1604,6 +1604,24 @@ try:
         pickle.dump(metadata, f)
 
     print(f"   ✓ Metadados salvos")
+
+    # 🔥 CRITICAL: Force ChromaDB persistence (0.5.x may not auto-persist)
+    print(f"   💾 Forçando persistência do ChromaDB...")
+    try:
+        # ChromaDB 0.5.x requires explicit persist call
+        if hasattr(retriever.vectorstore, 'persist'):
+            retriever.vectorstore.persist()
+            print(f"   ✓ ChromaDB persistido com sucesso!")
+        elif hasattr(retriever.vectorstore, '_client'):
+            # Alternative: persist via client
+            retriever.vectorstore._client.persist()
+            print(f"   ✓ ChromaDB persistido via client!")
+        else:
+            print(f"   ⚠️  Método .persist() não disponível (pode ser auto-persistente)")
+    except Exception as persist_error:
+        print(f"   ⚠️  Aviso ao persistir: {str(persist_error)}")
+        print(f"   (ChromaDB pode estar em modo auto-persist)")
+
     print(f"   ✓ Adicionado!\n")
 
 except Exception as e:
