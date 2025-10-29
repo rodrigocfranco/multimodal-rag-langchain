@@ -694,7 +694,7 @@ hiperglicemia hipoglicemia controle glicose doente grave"""
     print("🔥 Inicializando Cohere Reranker...")
 
     compressor = CohereRerank(
-        model="rerank-multilingual-v3.0",  # Suporta português
+        model="rerank-v3.5",  # Latest unified model (multilingual + better performance)
         top_n=15  # ✅ INCREASED: 15 chunks for better coverage (Reddit insights)
     )
 
@@ -1351,9 +1351,9 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
             # 2. Cohere API Key
             try:
                 from langchain_cohere import CohereRerank
-                test_rerank = CohereRerank(model="rerank-multilingual-v3.0", top_n=1)
+                test_rerank = CohereRerank(model="rerank-v3.5", top_n=1)
                 # Não tem como testar sem documentos, só verificar se instancia
-                api_keys_test["cohere"] = {"status": "OK", "model": "rerank-multilingual-v3.0"}
+                api_keys_test["cohere"] = {"status": "OK", "model": "rerank-v3.5"}
             except Exception as e:
                 api_keys_test["cohere"] = {"status": "FAILED", "error": str(e)[:150]}
 
@@ -1516,7 +1516,7 @@ RESPOSTA (baseada SOMENTE no contexto acima, com inferências lógicas documenta
         return jsonify({
             "message": "RAG Multimodal API com Reranker Cohere",
             "version": "1.0",
-            "reranker": "cohere-multilingual-v3.0",
+            "reranker": "cohere-rerank-v3.5",
             "endpoints": {
                 "GET /": "Esta página (documentação)",
                 "GET /health": "Health check",
@@ -3225,7 +3225,7 @@ else:
     # 🔥 RERANKER COHERE
     print("🔥 Inicializando Cohere Reranker...")
     compressor = CohereRerank(
-        model="rerank-multilingual-v3.0",  # Suporta português!
+        model="rerank-v3.5",  # Latest unified model (multilingual + better performance)
         top_n=8  # ✅ OTIMIZADO: Aumentado de 5→8 para perguntas complexas/abstratas
     )
     
@@ -3250,7 +3250,7 @@ else:
         for p in metadata['pdfs']:
             print(f"  • {p['filename']} ({p['texts']}T, {p['tables']}Tab, {p['images']}I)")
     print("=" * 60)
-    print("\n🔥 Reranker ativado: Cohere Multilingual v3.0")
+    print("\n🔥 Reranker ativado: Cohere Rerank v3.5 (unified multilingual)")
     print("   → Busca inicial: ~20 resultados (otimizado)")
     print("   → Após rerank: Top 5 mais relevantes")
     print("   → Melhoria de precisão: 30-40%\n")

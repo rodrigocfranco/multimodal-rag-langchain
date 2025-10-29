@@ -94,7 +94,7 @@ class DocumentConverter(BaseRetriever):
 wrapped_retriever = DocumentConverter(retriever=base_retriever)
 
 compressor = CohereRerank(
-    model="rerank-multilingual-v3.0",
+    model="rerank-v3.5",
     top_n=5
 )
 

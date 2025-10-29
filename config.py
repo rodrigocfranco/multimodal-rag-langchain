@@ -28,7 +28,7 @@ COLLECTION_NAME = "knowledge_base"
 # === MODELS ===
 EMBEDDING_MODEL = "text-embedding-3-large"
 LLM_MODEL = "gpt-4o-mini"
-RERANK_MODEL = "rerank-multilingual-v3.0"
+RERANK_MODEL = "rerank-v3.5"
 
 # === DEBUG ===
 def print_config():
