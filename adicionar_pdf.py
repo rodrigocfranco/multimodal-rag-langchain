@@ -21,6 +21,37 @@ load_dotenv()
 MIN_IMAGE_SIZE_KB = float(os.getenv("MIN_IMAGE_SIZE_KB", "30"))
 
 # ===========================================================================
+# METADATA CLEANING FOR CHROMADB 0.5.x
+# ===========================================================================
+def clean_metadata_for_chromadb(metadata: dict) -> dict:
+    """
+    Remove valores None e converte tipos incompatíveis para ChromaDB 0.5.x.
+    ChromaDB só aceita: str, int, float, bool
+    """
+    cleaned = {}
+    for key, value in metadata.items():
+        if value is None:
+            # Substituir None por string vazia ou valor default
+            if "count" in key or "number" in key:
+                cleaned[key] = 0
+            elif isinstance(value, bool):
+                cleaned[key] = False
+            else:
+                cleaned[key] = ""
+        elif isinstance(value, (str, int, float, bool)):
+            cleaned[key] = value
+        elif isinstance(value, list):
+            # Converter listas para string separada por vírgula
+            cleaned[key] = ", ".join(str(v) for v in value if v is not None)
+        elif isinstance(value, dict):
+            # Ignorar dicts (ChromaDB não suporta nested objects)
+            continue
+        else:
+            # Converter outros tipos para string
+            cleaned[key] = str(value)
+    return cleaned
+
+# ===========================================================================
 # METADATA ENRICHMENT SYSTEM
 # ===========================================================================
 print("🚀 Carregando Metadata Enrichment System...")
@@ -1306,32 +1337,38 @@ try:
         original_text = texts[i].text if hasattr(texts[i], 'text') else str(texts[i])
         combined_content = f"{contextualized_chunk}\n\n[RESUMO]\n{summary}\n\n[ORIGINAL]\n{original_text}"
 
+        # Preparar metadata (antes de limpar)
+        raw_metadata = {
+            "doc_id": doc_id,
+            "pdf_id": pdf_id,  # ✅ ID do PDF
+            "source": pdf_filename,
+            "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
+            "type": "text",
+            "index": i,
+            "page_number": page_num,
+            "uploaded_at": uploaded_at,
+            "section": section,              # ✅ Seção do documento
+            "document_type": document_type,  # ✅ Tipo de documento
+            "summary": summary,              # ✅ Resumo separado
+
+            # ✅ METADADOS ENRIQUECIDOS (KeyBERT + Medical NER + Numerical)
+            # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
+            # Convertemos listas para strings separadas por vírgula
+            "keywords_str": enriched_metadata.get("keywords_str", ""),
+            "entities_diseases_str": ", ".join(enriched_metadata.get("entities_diseases", [])),
+            "entities_medications_str": ", ".join(enriched_metadata.get("entities_medications", [])),
+            "entities_procedures_str": ", ".join(enriched_metadata.get("entities_procedures", [])),
+            "has_medical_entities": enriched_metadata.get("has_medical_entities", False),
+            "measurements_count": len(enriched_metadata.get("measurements", [])),
+            "has_measurements": enriched_metadata.get("has_measurements", False),
+        }
+
+        # ✅ CRITICAL: Limpar metadados para ChromaDB 0.5.x (remove None values)
+        cleaned_metadata = clean_metadata_for_chromadb(raw_metadata)
+
         doc = Document(
             page_content=combined_content,  # ✅ CONTEXTUALIZADO + RESUMO + ORIGINAL
-            metadata={
-                "doc_id": doc_id,
-                "pdf_id": pdf_id,  # ✅ ID do PDF
-                "source": pdf_filename,
-                "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
-                "type": "text",
-                "index": i,
-                "page_number": page_num,
-                "uploaded_at": uploaded_at,
-                "section": section,              # ✅ Seção do documento
-                "document_type": document_type,  # ✅ Tipo de documento
-                "summary": summary,              # ✅ Resumo separado
-    
-                # ✅ METADADOS ENRIQUECIDOS (KeyBERT + Medical NER + Numerical)
-                # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
-                # Convertemos listas para strings separadas por vírgula
-                "keywords_str": enriched_metadata.get("keywords_str", ""),
-                "entities_diseases_str": ", ".join(enriched_metadata.get("entities_diseases", [])),
-                "entities_medications_str": ", ".join(enriched_metadata.get("entities_medications", [])),
-                "entities_procedures_str": ", ".join(enriched_metadata.get("entities_procedures", [])),
-                "has_medical_entities": enriched_metadata.get("has_medical_entities", False),
-                "measurements_count": len(enriched_metadata.get("measurements", [])),
-                "has_measurements": enriched_metadata.get("has_measurements", False),
-            }
+            metadata=cleaned_metadata
         )
         
         # Adicionar source ao documento original
@@ -1392,31 +1429,37 @@ try:
         # Combined content: contexto + resumo + original + HTML
         combined_table_content = f"{contextualized_table}\n\n[RESUMO]\n{summary}\n\n[ORIGINAL]\n{original_table_text}{table_html}"
 
+        # Preparar metadata para tabelas (antes de limpar)
+        raw_table_metadata = {
+            "doc_id": doc_id,
+            "pdf_id": pdf_id,  # ✅ ID do PDF
+            "source": pdf_filename,
+            "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
+            "type": "table",  # ✅ Tipo correto: tabela (frontend detecta image_base64 para exibição)
+            "index": i,
+            "page_number": page_num,
+            "uploaded_at": uploaded_at,
+            "section": section,              # ✅ Seção do documento
+            "document_type": document_type,  # ✅ Tipo de documento
+            "summary": summary,              # ✅ Resumo separado
+
+            # ✅ METADADOS ENRIQUECIDOS (tabelas são especialmente ricas!)
+            # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
+            "keywords_str": enriched_table_metadata.get("keywords_str", ""),
+            "entities_diseases_str": ", ".join(enriched_table_metadata.get("entities_diseases", [])),
+            "entities_medications_str": ", ".join(enriched_table_metadata.get("entities_medications", [])),
+            "entities_procedures_str": ", ".join(enriched_table_metadata.get("entities_procedures", [])),
+            "has_medical_entities": enriched_table_metadata.get("has_medical_entities", False),
+            "measurements_count": len(enriched_table_metadata.get("measurements", [])),
+            "has_measurements": enriched_table_metadata.get("has_measurements", False),
+        }
+
+        # ✅ CRITICAL: Limpar metadados para ChromaDB 0.5.x (remove None values)
+        cleaned_table_metadata = clean_metadata_for_chromadb(raw_table_metadata)
+
         doc = Document(
             page_content=combined_table_content,  # ✅ CONTEXTUALIZADO + RESUMO + ORIGINAL + HTML
-            metadata={
-                "doc_id": doc_id,
-                "pdf_id": pdf_id,  # ✅ ID do PDF
-                "source": pdf_filename,
-                "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
-                "type": "table",  # ✅ Tipo correto: tabela (frontend detecta image_base64 para exibição)
-                "index": i,
-                "page_number": page_num,
-                "uploaded_at": uploaded_at,
-                "section": section,              # ✅ Seção do documento
-                "document_type": document_type,  # ✅ Tipo de documento
-                "summary": summary,              # ✅ Resumo separado
-    
-                # ✅ METADADOS ENRIQUECIDOS (tabelas são especialmente ricas!)
-                # IMPORTANTE: ChromaDB não aceita listas em metadata, apenas str/int/float/bool
-                "keywords_str": enriched_table_metadata.get("keywords_str", ""),
-                "entities_diseases_str": ", ".join(enriched_table_metadata.get("entities_diseases", [])),
-                "entities_medications_str": ", ".join(enriched_table_metadata.get("entities_medications", [])),
-                "entities_procedures_str": ", ".join(enriched_table_metadata.get("entities_procedures", [])),
-                "has_medical_entities": enriched_table_metadata.get("has_medical_entities", False),
-                "measurements_count": len(enriched_table_metadata.get("measurements", [])),
-                "has_measurements": enriched_table_metadata.get("has_measurements", False),
-            }
+            metadata=cleaned_table_metadata
         )
         
         # Adicionar source à tabela original
@@ -1455,22 +1498,28 @@ try:
         # Isso melhora retrieval de imagens médicas em ~49% segundo Anthropic
         contextualized_chunk = contextualized_images[i] if i < len(contextualized_images) else summary
     
+        # Preparar metadata para imagens (antes de limpar)
+        raw_image_metadata = {
+            "doc_id": doc_id,
+            "pdf_id": pdf_id,  # ✅ ID do PDF
+            "source": pdf_filename,
+            "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
+            "type": "image",
+            "index": i,
+            "page_number": None,  # Imagens geralmente não têm page_number
+            "uploaded_at": uploaded_at,
+            "section": None,                 # Imagens geralmente não têm seção detectável
+            "document_type": document_type,  # ✅ NOVO: Tipo de documento
+            # ✅ NOVO: Adicionar summary original como metadata (útil para debug)
+            "summary": summary[:500],  # Primeiros 500 chars do summary original
+        }
+
+        # ✅ CRITICAL: Limpar metadados para ChromaDB 0.5.x (remove None values)
+        cleaned_image_metadata = clean_metadata_for_chromadb(raw_image_metadata)
+
         doc = Document(
             page_content=contextualized_chunk,  # ✅ Usar versão contextualizada
-            metadata={
-                "doc_id": doc_id,
-                "pdf_id": pdf_id,  # ✅ ID do PDF
-                "source": pdf_filename,
-                "filename": pdf_filename,  # ✅ CRÍTICO: Adicionar filename para evitar chunks órfãos
-                "type": "image",
-                "index": i,
-                "page_number": None,  # Imagens geralmente não têm page_number
-                "uploaded_at": uploaded_at,
-                "section": None,                 # Imagens geralmente não têm seção detectável
-                "document_type": document_type,  # ✅ NOVO: Tipo de documento
-                # ✅ NOVO: Adicionar summary original como metadata (útil para debug)
-                "summary": summary[:500],  # Primeiros 500 chars do summary original
-            }
+            metadata=cleaned_image_metadata
         )
     
         # Salvar imagem original no docstore (base64)
