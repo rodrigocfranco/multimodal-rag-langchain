@@ -98,6 +98,17 @@ A API estará disponível em `http://localhost:5001`
 
 ## Deploy no Railway
 
+> **⚠️ IMPORTANTE - Atualização ChromaDB 0.5.x → 1.0.x**
+>
+> Se você já tinha um deploy anterior com ChromaDB 0.5.x, o formato do banco de dados é **incompatível** com ChromaDB 1.0+.
+>
+> **Opções:**
+> 1. **Limpar volume e reprocessar PDFs** (recomendado para fresh start)
+> 2. **Manter versão antiga** - reverter para `chromadb==0.5.23` e `langchain-chroma==0.1.4` no requirements.txt
+>
+> Para limpar o volume no Railway:
+> - Vá em Settings → Volume → Delete Volume (cria um novo automaticamente no próximo deploy)
+
 ### Método 1: Deploy Direto do GitHub (Recomendado)
 
 1. **Fork este repositório** para sua conta GitHub
