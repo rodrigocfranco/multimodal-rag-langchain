@@ -5,12 +5,12 @@ Configuração centralizada do sistema
 import os
 
 # === DIRETÓRIOS ===
-# Prioridade: PERSIST_DIR (env) > /app/knowledge (Railway) > ./knowledge (local)
+# Prioridade: PERSIST_DIR (env) > /app/base (Railway) > ./knowledge (local)
 PERSIST_DIR = os.getenv("PERSIST_DIR")
 if not PERSIST_DIR:
-    # Railway default
-    if os.path.exists("/app/knowledge"):
-        PERSIST_DIR = "/app/knowledge"
+    # Railway default (novo volume)
+    if os.path.exists("/app/base"):
+        PERSIST_DIR = "/app/base"
     else:
         PERSIST_DIR = "./knowledge"
 

@@ -44,8 +44,8 @@ Procure por:
 3. Scroll até "Volumes"
 4. Você verá:
 
-   📁 knowledge
-   Mount path: /app/knowledge
+   📁 base
+   Mount path: /app/base
    [⋮] Menu → Delete
 
 5. Click em "Delete"
@@ -66,7 +66,7 @@ Procure por:
 ```
 ✅ Railway detecta que o volume foi deletado
 ✅ Cria automaticamente novo volume vazio
-✅ Monta em /app/knowledge (conforme railway.json)
+✅ Monta em /app/base (conforme railway.json)
 ✅ Python inicia
 ✅ ChromaDB 1.0.21 cria estrutura nova
 ✅ Healthcheck passa! 🎉
@@ -134,7 +134,7 @@ curl https://seu-app.railway.app/health
 {
   "status": "ok",
   "reranker": "cohere",
-  "persist_dir": "/app/knowledge",
+  "persist_dir": "/app/base",
   "ready": true
 }
 ```
